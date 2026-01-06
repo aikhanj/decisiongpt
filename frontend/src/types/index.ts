@@ -1,14 +1,272 @@
-// Enums
+// ============================================
+// DECISION CANVAS TYPES
+// ============================================
+
+// Decision Types
+export type DecisionType =
+  | "career"
+  | "financial"
+  | "business"
+  | "personal"
+  | "relationship"
+  | "health"
+  | "education"
+  | "other";
+
+export type DecisionStatus = "active" | "resolved" | "archived";
+
+export type NodePhase = "clarify" | "moves" | "execute";
+
+export type RiskLevel = "low" | "medium" | "high";
+
+export type AnswerType = "yes_no" | "text" | "number" | "single_select";
+
+export type ConfidenceLevel = "low" | "medium" | "high";
+
+// ============================================
+// CHAT TYPES
+// ============================================
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  timestamp: string;
+}
+
+// ============================================
+// CANVAS STATE TYPES
+// ============================================
+
+export interface Constraint {
+  id: string;
+  text: string;
+  type: "hard" | "soft";
+}
+
+export interface Criterion {
+  id: string;
+  name: string;
+  weight: number; // 1-10
+  description?: string;
+}
+
+export interface Risk {
+  id: string;
+  description: string;
+  severity: RiskLevel;
+  mitigation?: string;
+  option_id?: string;
+}
+
+export interface CanvasState {
+  statement?: string;
+  context_bullets: string[];
+  constraints: Constraint[];
+  criteria: Criterion[];
+  risks: Risk[];
+  next_action?: string;
+}
+
+// ============================================
+// OPTION TYPES
+// ============================================
+
+export interface Option {
+  id: string; // "A", "B", or "C"
+  title: string;
+  good_if: string;
+  bad_if: string;
+  pros: string[];
+  cons: string[];
+  risks: string[];
+  steps: string[];
+  confidence: ConfidenceLevel;
+  confidence_reasoning?: string;
+}
+
+// ============================================
+// COMMIT PLAN TYPES
+// ============================================
+
+export interface IfThenBranch {
+  condition: string;
+  action: string;
+}
+
+export interface CommitStep {
+  number: number;
+  title: string;
+  description?: string;
+  branches: IfThenBranch[];
+  completed: boolean;
+}
+
+export interface CommitPlan {
+  chosen_option_id: string;
+  chosen_option_title: string;
+  steps: CommitStep[];
+}
+
+// ============================================
+// QUESTION TYPES
+// ============================================
+
+export interface Question {
+  id: string;
+  question: string;
+  answer_type: AnswerType;
+  choices?: string[];
+  why_this_question: string;
+  what_it_changes: string;
+  priority: number;
+}
+
+export interface Answer {
+  question_id: string;
+  value: string | number | boolean;
+}
+
+// ============================================
+// OUTCOME TYPES
+// ============================================
+
+export interface DecisionOutcome {
+  id: string;
+  node_id: string;
+  progress_yesno: boolean | null;
+  sentiment_2h: number | null; // -2 to +2
+  sentiment_24h: number | null; // -2 to +2
+  brier_score: number | null;
+  notes: string | null;
+  created_at: string;
+}
+
+// ============================================
+// DECISION NODE TYPES
+// ============================================
+
+export interface DecisionNode {
+  id: string;
+  decision_id: string;
+  parent_node_id: string | null;
+  phase: NodePhase;
+  created_at: string;
+
+  // Chat & Canvas state
+  chat_messages_json?: ChatMessage[];
+  canvas_state_json?: CanvasState;
+
+  // Questions & Answers
+  questions_json?: { questions: Question[] };
+  answers_json?: Record<string, string | number | boolean>;
+
+  // Options & Choice
+  moves_json?: { options: Option[] };
+  chosen_move_id?: string;
+
+  // Commit plan
+  execution_plan_json?: CommitPlan;
+}
+
+// ============================================
+// DECISION TYPES
+// ============================================
+
+export interface Decision {
+  id: string;
+  user_id: string;
+  title: string | null;
+  situation_text: string;
+  situation_type: DecisionType | null;
+  status: DecisionStatus;
+  created_at: string;
+  updated_at: string;
+  nodes: DecisionNode[];
+  current_node?: DecisionNode;
+}
+
+// ============================================
+// BRANCHING TYPES
+// ============================================
+
+export type BranchReason =
+  | "new_info"
+  | "changed_assumption"
+  | "changed_constraint"
+  | "add_option";
+
+export interface BranchRequest {
+  reason: BranchReason;
+  details: string;
+}
+
+// ============================================
+// API REQUEST TYPES
+// ============================================
+
+export interface StartDecisionRequest {
+  situation_text: string;
+}
+
+export interface ChatRequest {
+  message: string;
+}
+
+export interface ChooseOptionRequest {
+  option_id: string;
+}
+
+export interface SubmitAnswersRequest {
+  answers: Record<string, string | number | boolean>;
+}
+
+export interface ResolveOutcomeRequest {
+  progress_yesno: boolean;
+  sentiment_2h?: number;
+  sentiment_24h?: number;
+  notes?: string;
+}
+
+// ============================================
+// API RESPONSE TYPES
+// ============================================
+
+export interface StartDecisionResponse {
+  decision: Decision;
+  node: DecisionNode;
+  initial_message: ChatMessage;
+  canvas_state: CanvasState;
+  questions: Question[];
+}
+
+export interface ChatResponse {
+  message: ChatMessage;
+  canvas_state: CanvasState;
+  phase: NodePhase;
+  questions?: Question[];
+  options?: Option[];
+  commit_plan?: CommitPlan;
+}
+
+export interface ChatHistoryResponse {
+  messages: ChatMessage[];
+  canvas_state?: CanvasState;
+  phase: NodePhase;
+  options?: Option[];
+  commit_plan?: CommitPlan;
+}
+
+// ============================================
+// LEGACY TYPES (for backwards compatibility)
+// ============================================
+
 export type SituationType =
   | "gym_approach"
   | "double_text"
   | "kiss_timing"
   | "first_date_plan"
   | "generic_relationship_next_step";
-
-export type DecisionStatus = "active" | "resolved" | "archived";
-
-export type NodePhase = "clarify" | "moves" | "execute";
 
 export type MoodState =
   | "calm"
@@ -20,34 +278,11 @@ export type MoodState =
   | "confident"
   | "neutral";
 
-export type RiskLevel = "low" | "med" | "high";
-
-export type AnswerType = "yes_no" | "text" | "number" | "single_select";
-
-// Question from Phase 1
-export interface Question {
-  id: string;
-  question: string;
-  answer_type: AnswerType;
-  choices?: string[];
-  why_this_question: string;
-  what_it_changes: string;
-  priority: number;
-}
-
-// Answer from user
-export interface Answer {
-  question_id: string;
-  value: string | number | boolean;
-}
-
-// Branch response
 export interface BranchResponse {
   next_move: string;
   script: string;
 }
 
-// Move from Phase 2
 export interface Move {
   move_id: string;
   title: string;
@@ -78,7 +313,6 @@ export interface Move {
   };
 }
 
-// Execution plan
 export interface ExecutionPlan {
   steps: string[];
   exact_message: string;
@@ -86,71 +320,6 @@ export interface ExecutionPlan {
   boundary_rule: string;
 }
 
-// Decision node
-export interface DecisionNode {
-  id: string;
-  decision_id: string;
-  parent_node_id: string | null;
-  phase: NodePhase;
-  questions_json: { questions: Question[] } | null;
-  answers_json: { answers: Answer[] } | null;
-  moves_json: {
-    moves: Move[];
-    cooldown_recommended: boolean;
-    cooldown_reason: string | null;
-  } | null;
-  chosen_move_id: string | null;
-  execution_plan_json: ExecutionPlan | null;
-  mood_state: MoodState | null;
-  created_at: string;
-}
-
-// Decision
-export interface Decision {
-  id: string;
-  user_id: string;
-  title: string | null;
-  situation_text: string;
-  situation_type: SituationType | null;
-  status: DecisionStatus;
-  created_at: string;
-  updated_at: string;
-  nodes: DecisionNode[];
-}
-
-// Outcome
-export interface DecisionOutcome {
-  id: string;
-  node_id: string;
-  progress_yesno: boolean | null;
-  sentiment_2h: number | null;
-  sentiment_24h: number | null;
-  brier_score: number | null;
-  notes: string | null;
-  created_at: string;
-}
-
-// API Request types
-export interface CreateDecisionRequest {
-  situation_text: string;
-}
-
-export interface AnswerQuestionsRequest {
-  answers: Answer[];
-}
-
-export interface ChooseMoveRequest {
-  move_id: string;
-}
-
-export interface ResolveOutcomeRequest {
-  progress_yesno: boolean;
-  sentiment_2h?: number;
-  sentiment_24h?: number;
-  notes?: string;
-}
-
-// API Response types
 export interface Phase1Response {
   decision: Decision;
   node: DecisionNode;

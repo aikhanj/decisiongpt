@@ -1,10 +1,11 @@
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
+from typing import Optional, Literal, Any
 
 from app.schemas.question import Question
 from app.schemas.move import Move, ExecutionPlan
+from app.schemas.canvas import ChatMessage, CanvasState, Option, CommitPlan
 
 
 class DecisionCreate(BaseModel):
@@ -46,6 +47,33 @@ class DecisionNodeResponse(BaseModel):
     execution_plan_json: Optional[dict] = None
     mood_state: Optional[str] = None
     created_at: datetime
+
+    # Decision Canvas fields
+    chat_messages_json: Optional[list[dict]] = None
+    canvas_state_json: Optional[dict] = None
+
+    class Config:
+        from_attributes = True
+
+
+class DecisionNodeDetailResponse(BaseModel):
+    """Detailed response for a decision node with parsed canvas data."""
+
+    id: UUID
+    decision_id: UUID
+    parent_node_id: Optional[UUID] = None
+    phase: str
+    created_at: datetime
+
+    # Parsed Decision Canvas fields
+    chat_messages: list[ChatMessage] = []
+    canvas_state: Optional[CanvasState] = None
+    options: list[Option] = []
+    commit_plan: Optional[CommitPlan] = None
+
+    # Legacy fields (for backwards compatibility)
+    questions_json: Optional[dict] = None
+    answers_json: Optional[dict] = None
 
     class Config:
         from_attributes = True

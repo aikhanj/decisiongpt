@@ -1,20 +1,46 @@
+"""Phase 2 (Options) and Phase 3 (Commit) prompts for Decision Canvas."""
+
+
 def get_phase2_prompt(
     summary: str,
-    situation_type: str,
-    mood_state: str,
+    decision_type: str,
     questions_and_answers: str,
+    canvas_state: dict,
     template_guardrails: str = "",
 ) -> str:
-    """Generate the Phase 2 (Moves) prompt."""
-    return f"""## Task: Generate 2-3 Move Options
+    """Generate the Phase 2 (Options) prompt for any decision domain."""
 
-Based on the analyzed situation and user's answers, generate 2-3 actionable moves.
+    constraints_str = ""
+    if canvas_state.get("constraints"):
+        constraints_str = "\n".join(
+            [f"- [{c.get('type', 'soft').upper()}] {c.get('text', '')}"
+             for c in canvas_state.get("constraints", [])]
+        )
 
-## Situation Summary:
+    criteria_str = ""
+    if canvas_state.get("criteria"):
+        criteria_str = "\n".join(
+            [f"- {c.get('name', '')} (weight: {c.get('weight', 5)}/10)"
+             for c in canvas_state.get("criteria", [])]
+        )
+
+    return f"""## Task: Generate 2-3 Decision Options
+
+Based on the analyzed decision and user's answers, generate 2-3 distinct options.
+
+## Decision Summary:
 {summary}
 
-## Situation Type: {situation_type}
-## User Mood: {mood_state}
+## Decision Type: {decision_type}
+
+## Decision Statement:
+{canvas_state.get('statement', 'Not specified')}
+
+## Constraints:
+{constraints_str or 'None specified'}
+
+## Decision Criteria:
+{criteria_str or 'None specified'}
 
 ## Questions and Answers:
 {questions_and_answers}
@@ -22,113 +48,166 @@ Based on the analyzed situation and user's answers, generate 2-3 actionable move
 {template_guardrails}
 
 ## Requirements:
-1. Generate exactly 2-3 moves (labeled A, B, C)
-2. Each move must include:
-   - Clear title (5 words max)
-   - When to use (1-2 lines)
-   - Tradeoff (1 line)
-   - Gentleman score (0-100)
-   - Risk level (low/med/high)
-   - Probability of progress (0.0-1.0)
-   - Criteria scores (each 0-10)
-   - Two script variants (direct and softer)
-   - Timing recommendation
-   - Branch responses for warm/neutral/cold reactions
+1. Generate exactly 2-3 options (labeled A, B, C)
+2. Options must be DISTINCT - not minor variations
+3. Each option represents a meaningfully different path
+4. Include one "safe/conservative" option if appropriate
 
-3. If mood is anxious/tired/horny/angry:
-   - Include a "Wait and Reset" move as one option
-   - Make scripts shorter and safer
-   - Set cooldown_recommended to true with reason
+## Each Option Must Include:
+- id: "A", "B", or "C"
+- title: Clear, concise title (5 words max)
+- good_if: When this option is the right choice
+- bad_if: When this option is NOT the right choice
+- pros: 3-5 bullet points
+- cons: 2-4 bullet points
+- risks: Risk tags (e.g., "financial_risk", "time_pressure", "irreversible")
+- steps: 3-5 implementation steps
+- confidence: "low", "medium", or "high"
+- confidence_reasoning: Why this confidence level
 
-## Gentleman Score Criteria (each 0-10):
-- self_respect: Does this maintain the user's dignity?
-- respect_for_her: Does this respect her autonomy and comfort?
-- clarity: Is this clear and honest?
-- leadership: Does this show confident initiative?
-- warmth: Is this warm and approachable?
-- progress: Does this move things forward?
-- risk_management: Does this manage downside risk?
-
-## Script Requirements:
-- Direct variant: Confident, clear, gets to the point
-- Softer variant: More cautious, gives more room
-- Both must be under 50 words
-- No manipulation, guilt, or pressure
-
-## Hard Guardrails (Reject Any Move That):
-- Suggests persistence after rejection
-- Uses jealousy or manipulation
-- Involves lying
-- Pressures or guilts
-- Sends wall of text (>200 words)
-- Escalates physically without clear signals
+## Option Quality Guidelines:
+- Options should be actionable, not abstract
+- Pros/cons should be specific, not generic
+- Steps should be concrete and sequenced
+- Risks should be honest and realistic
 
 ## Output JSON Schema:
 {{
-  "moves": [
+  "options": [
     {{
-      "move_id": "A",
+      "id": "A",
       "title": "string (5 words max)",
-      "when_to_use": "string (1-2 lines)",
-      "tradeoff": "string (1 line)",
-      "gentleman_score": 0-100,
-      "risk_level": "low|med|high",
-      "p_raw_progress": 0.0-1.0,
-      "p_calibrated_progress": 0.0-1.0,
-      "criteria_scores": {{
-        "self_respect": 0-10,
-        "respect_for_her": 0-10,
-        "clarity": 0-10,
-        "leadership": 0-10,
-        "warmth": 0-10,
-        "progress": 0-10,
-        "risk_management": 0-10
-      }},
-      "scripts": {{
-        "direct": "string",
-        "softer": "string"
-      }},
-      "timing": "string",
-      "branches": {{
-        "warm": {{"next_move": "string", "script": "string"}},
-        "neutral": {{"next_move": "string", "script": "string"}},
-        "cold": {{"next_move": "string", "script": "string"}}
-      }}
+      "good_if": "string - when this option is best",
+      "bad_if": "string - when to avoid this option",
+      "pros": ["pro1", "pro2", "pro3"],
+      "cons": ["con1", "con2"],
+      "risks": ["risk_tag_1", "risk_tag_2"],
+      "steps": ["step1", "step2", "step3"],
+      "confidence": "low|medium|high",
+      "confidence_reasoning": "string - why this confidence level"
     }}
   ],
-  "cooldown_recommended": boolean,
-  "cooldown_reason": "string or null"
+  "canvas_state_update": {{
+    "risks": [
+      {{"id": "r1", "description": "string", "severity": "low|medium|high", "option_id": "A"}}
+    ],
+    "next_action": "Review options and choose one"
+  }}
 }}
 
 Respond with valid JSON only."""
 
 
 def get_execution_plan_prompt(
-    move_title: str,
-    move_details: str,
-    chosen_script: str,
+    option_title: str,
+    option_details: dict,
+    canvas_state: dict,
 ) -> str:
-    """Generate the execution plan prompt."""
-    return f"""## Task: Generate Execution Plan
+    """Generate the execution/commit plan prompt."""
 
-Create a concrete execution plan for the chosen move.
+    steps_str = "\n".join([f"- {step}" for step in option_details.get("steps", [])])
 
-## Chosen Move: {move_title}
-## Move Details: {move_details}
-## Script to Use: {chosen_script}
+    return f"""## Task: Generate Commit Plan
+
+Create a concrete execution plan for the chosen option.
+
+## Chosen Option: {option_title}
+
+## Option Steps:
+{steps_str}
+
+## Good If: {option_details.get('good_if', '')}
+## Risks: {', '.join(option_details.get('risks', []))}
+
+## Decision Context:
+{canvas_state.get('statement', '')}
 
 ## Requirements:
-1. Generate 3-6 specific steps
-2. Include the exact message/opener
-3. Include an exit line if things go cold
-4. Include one boundary rule
+1. Generate 3-6 specific, actionable steps
+2. First step should be immediately actionable
+3. Include if-then contingency branches
+4. Steps should have clear completion criteria
+
+## Step Requirements:
+- Each step has a clear action
+- Steps are sequenced logically
+- Include contingencies for key decision points
+- Final step confirms completion/resolution
 
 ## Output JSON Schema:
 {{
-  "steps": ["step 1", "step 2", "step 3"],
-  "exact_message": "string - the exact opener/message",
-  "exit_line": "string - graceful exit if not receptive",
-  "boundary_rule": "string - one rule to follow"
+  "commit_plan": {{
+    "chosen_option_id": "{option_details.get('id', 'A')}",
+    "chosen_option_title": "{option_title}",
+    "steps": [
+      {{
+        "number": 1,
+        "title": "string - action title",
+        "description": "string - more detail if needed",
+        "branches": [
+          {{"condition": "success", "action": "Proceed to step 2"}},
+          {{"condition": "failure", "action": "Revisit decision or try alternative"}}
+        ],
+        "completed": false
+      }}
+    ]
+  }},
+  "canvas_state_update": {{
+    "next_action": "Execute step 1: [first step title]"
+  }}
+}}
+
+Respond with valid JSON only."""
+
+
+def get_chat_options_prompt(
+    chat_history: list[dict],
+    canvas_state: dict,
+    options: list[dict],
+) -> str:
+    """Generate prompt for chat during options phase."""
+
+    history_str = "\n".join(
+        [f"{msg['role'].upper()}: {msg['content']}" for msg in chat_history[-10:]]
+    )
+
+    options_str = "\n".join([
+        f"Option {opt['id']}: {opt['title']}"
+        for opt in options
+    ])
+
+    return f"""## Task: Help User Evaluate Options
+
+The user is reviewing their options and may have questions or want to discuss trade-offs.
+
+## Current Options:
+{options_str}
+
+## Conversation History:
+{history_str}
+
+## Canvas State:
+- Statement: {canvas_state.get('statement', '')}
+- Criteria: {len(canvas_state.get('criteria', []))} defined
+
+## Your Task:
+1. Answer any questions about the options
+2. Help compare options against their criteria
+3. If they express a preference, encourage them to commit
+4. Do NOT make the decision for them
+
+## Response Requirements:
+- Keep response under 150 words
+- Be helpful but don't push
+- If they choose, acknowledge and prepare for commit plan
+
+## Output JSON Schema:
+{{
+  "response": "string - your conversational response",
+  "user_chose_option": null or "A|B|C",
+  "canvas_state_update": {{
+    "next_action": "string"
+  }}
 }}
 
 Respond with valid JSON only."""

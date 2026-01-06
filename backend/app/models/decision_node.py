@@ -50,6 +50,10 @@ class DecisionNode(Base):
     chosen_move_id: Mapped[str | None] = mapped_column(String(10), nullable=True)
     execution_plan_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
+    # Chat and Canvas state (Decision Canvas)
+    chat_messages_json: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    canvas_state_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
     # Metadata
     mood_state: Mapped[str | None] = mapped_column(String(20), nullable=True)
     metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

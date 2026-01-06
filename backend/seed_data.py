@@ -1,4 +1,4 @@
-"""Seed data script for demo decisions."""
+"""Seed data script for demo decisions - Decision Canvas."""
 
 import asyncio
 import uuid
@@ -42,13 +42,15 @@ async def seed_data():
         if not user:
             user = User(
                 id=DEMO_USER_ID,
-                email="demo@gentleman-coach.local",
+                email="demo@decision-canvas.local",
                 display_name="Demo User",
             )
             db.add(user)
             await db.commit()
 
-        # Create Demo Decision 1: Gym Approach (Resolved)
+        # =============================================
+        # Demo Decision 1: Job Offer (Resolved)
+        # =============================================
         decision1_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
         node1_id = uuid.UUID("11111111-1111-1111-1111-111111111112")
 
@@ -57,11 +59,11 @@ async def seed_data():
             decision1 = Decision(
                 id=decision1_id,
                 user_id=DEMO_USER_ID,
-                title="Approaching Sarah at the gym",
-                situation_text="There's a woman named Sarah I see at the gym 3-4 times a week. We've made eye contact a few times and she smiled once. She usually works out with headphones but takes them off between sets. I want to approach her but I'm not sure how to do it without being creepy.",
-                situation_type="gym_approach",
+                title="Should I accept the startup job offer?",
+                situation_text="I've received a job offer from a well-funded startup. The salary is 25% higher than my current role, but it requires relocating to a new city. My current company has good work-life balance and I've built strong relationships here.",
+                situation_type="career",
                 status="resolved",
-                created_at=datetime.utcnow() - timedelta(days=7),
+                created_at=datetime.utcnow() - timedelta(days=14),
             )
             db.add(decision1)
 
@@ -69,62 +71,154 @@ async def seed_data():
                 id=node1_id,
                 decision_id=decision1_id,
                 phase="execute",
-                state_json={"summary": "User wants to approach a woman at the gym who has shown some positive signals"},
-                questions_json={
-                    "questions": [
-                        {"id": "q1", "question": "Is she wearing headphones right now?", "answer_type": "yes_no", "priority": 90},
-                        {"id": "q2", "question": "Has she made eye contact today?", "answer_type": "yes_no", "priority": 85},
-                        {"id": "q3", "question": "Are you mid-workout or finished?", "answer_type": "single_select", "choices": ["Mid-workout", "Just finished", "About to start"], "priority": 75},
-                    ]
-                },
-                answers_json={
-                    "answers": [
-                        {"question_id": "q1", "value": False},
-                        {"question_id": "q2", "value": True},
-                        {"question_id": "q3", "value": "Just finished"},
-                    ]
+                chat_messages_json=[
+                    {
+                        "id": "msg1",
+                        "role": "assistant",
+                        "content": "I understand you're facing a significant career decision. Let me help you think through this systematically. A 25% salary increase is substantial, but relocating involves many factors. Let's explore your priorities.",
+                        "timestamp": (datetime.utcnow() - timedelta(days=14)).isoformat()
+                    },
+                    {
+                        "id": "msg2",
+                        "role": "user",
+                        "content": "I'm really torn. The startup seems exciting and the money is great, but I'm worried about leaving my current team and the stability.",
+                        "timestamp": (datetime.utcnow() - timedelta(days=14, hours=-1)).isoformat()
+                    },
+                    {
+                        "id": "msg3",
+                        "role": "assistant",
+                        "content": "Those are valid concerns. Stability vs. growth is a classic trade-off in career decisions. Let me ask: How important is career growth to you in the next 3-5 years? And do you have strong ties to your current location?",
+                        "timestamp": (datetime.utcnow() - timedelta(days=14, hours=-1, minutes=-5)).isoformat()
+                    },
+                    {
+                        "id": "msg4",
+                        "role": "user",
+                        "content": "Career growth is very important. I feel like I've plateaued here. I don't have family ties to this city, but I do have close friends.",
+                        "timestamp": (datetime.utcnow() - timedelta(days=14, hours=-2)).isoformat()
+                    },
+                    {
+                        "id": "msg5",
+                        "role": "assistant",
+                        "content": "Based on what you've shared, I've generated three options for you. Given your emphasis on career growth and the fact that you've plateaued, Option A (Accept the offer) seems like a strong choice, though each option has merit depending on your risk tolerance.",
+                        "timestamp": (datetime.utcnow() - timedelta(days=14, hours=-2, minutes=-5)).isoformat()
+                    }
+                ],
+                canvas_state_json={
+                    "statement": "Should I accept a startup job offer that pays 25% more but requires relocation?",
+                    "context_bullets": [
+                        "Current role is stable with good work-life balance",
+                        "Feel plateaued in current position",
+                        "Startup is well-funded with growth potential",
+                        "Would need to relocate to a new city",
+                        "No family ties to current location, but have close friends"
+                    ],
+                    "constraints": [
+                        {"id": "c1", "text": "Need at least current salary level", "type": "hard"},
+                        {"id": "c2", "text": "Prefer not to relocate more than once in 3 years", "type": "soft"},
+                        {"id": "c3", "text": "Want meaningful career growth opportunities", "type": "hard"}
+                    ],
+                    "criteria": [
+                        {"id": "cr1", "name": "Career Growth", "weight": 9, "description": "Opportunities for advancement and skill development"},
+                        {"id": "cr2", "name": "Compensation", "weight": 7, "description": "Total compensation including salary, equity, benefits"},
+                        {"id": "cr3", "name": "Work-Life Balance", "weight": 6, "description": "Hours, flexibility, stress levels"},
+                        {"id": "cr4", "name": "Location", "weight": 5, "description": "Quality of life in the city, proximity to friends/family"}
+                    ],
+                    "risks": [
+                        {"id": "r1", "description": "Startup may fail or pivot significantly", "severity": "medium", "mitigation": "Research runway and product-market fit"},
+                        {"id": "r2", "description": "Burnout from startup culture", "severity": "medium", "mitigation": "Set boundaries early, discuss expectations"},
+                        {"id": "r3", "description": "Social isolation in new city", "severity": "low", "mitigation": "Budget time for building new connections"}
+                    ],
+                    "next_action": "Complete Step 1: Schedule call with hiring manager"
                 },
                 moves_json={
-                    "moves": [
+                    "options": [
                         {
-                            "move_id": "A",
-                            "title": "Direct Introduction",
-                            "when_to_use": "When she's between sets and seems relaxed",
-                            "tradeoff": "Clear but puts you on the spot",
-                            "gentleman_score": 85,
-                            "risk_level": "med",
-                            "p_raw_progress": 0.45,
-                            "p_calibrated_progress": 0.45,
-                            "scripts": {
-                                "direct": "Hey, I see you here often. I'm [name]. Would you want to grab coffee sometime after a workout?",
-                                "softer": "Hey, quick question - do you know if they're ever going to fix that cable machine?"
-                            },
-                            "timing": "Right after she finishes a set",
-                            "branches": {
-                                "warm": {"next_move": "Exchange numbers", "script": "Great! What's your number?"},
-                                "neutral": {"next_move": "Leave door open", "script": "No worries, see you around!"},
-                                "cold": {"next_move": "Exit gracefully", "script": "All good, have a great workout!"}
-                            }
+                            "id": "A",
+                            "title": "Accept the startup offer",
+                            "good_if": "You prioritize career growth and are excited about the opportunity",
+                            "bad_if": "You value stability and strong local relationships above growth",
+                            "pros": ["25% salary increase", "New challenges and learning opportunities", "Potential equity upside", "Break from career plateau"],
+                            "cons": ["Need to relocate", "Higher risk of company failure", "Leave established relationships", "Potentially longer hours"],
+                            "risks": ["startup_failure", "burnout", "isolation"],
+                            "steps": ["Negotiate terms and start date", "Plan relocation logistics", "Give notice at current job", "Build relationships at new company"],
+                            "confidence": "high",
+                            "confidence_reasoning": "Strong alignment with your stated career growth priority. Well-funded startup reduces failure risk."
+                        },
+                        {
+                            "id": "B",
+                            "title": "Decline and negotiate current role",
+                            "good_if": "Your current company offers meaningful growth path when pushed",
+                            "bad_if": "The company is genuinely limited in what they can offer",
+                            "pros": ["Keep existing relationships", "No relocation stress", "Known environment", "Can use offer as leverage"],
+                            "cons": ["May not get meaningful growth", "Missed opportunity", "Salary likely won't match offer"],
+                            "risks": ["stagnation", "resentment"],
+                            "steps": ["Request meeting with manager", "Present growth goals", "Negotiate promotion timeline", "Set review milestones"],
+                            "confidence": "medium",
+                            "confidence_reasoning": "Success depends on company's flexibility. Your plateau feeling suggests limited internal options."
+                        },
+                        {
+                            "id": "C",
+                            "title": "Negotiate remote work arrangement with startup",
+                            "good_if": "The startup is open to remote and you can be effective remotely",
+                            "bad_if": "The role requires in-person presence or company culture is office-first",
+                            "pros": ["Best of both worlds", "Keep local relationships", "Get the growth opportunity"],
+                            "cons": ["May reduce chances of getting role", "Could miss team bonding", "Harder to advance remotely"],
+                            "risks": ["offer_withdrawal", "career_impact"],
+                            "steps": ["Research company's remote policy", "Prepare value proposition for remote", "Negotiate hybrid arrangement", "Plan for occasional visits"],
+                            "confidence": "low",
+                            "confidence_reasoning": "Startup likely values in-person collaboration. Request may be seen as lack of commitment."
                         }
-                    ],
-                    "cooldown_recommended": False,
+                    ]
                 },
                 chosen_move_id="A",
                 execution_plan_json={
+                    "chosen_option_id": "A",
+                    "chosen_option_title": "Accept the startup offer",
                     "steps": [
-                        "Wait until she takes off her headphones between sets",
-                        "Approach from the front so she sees you coming",
-                        "Make brief eye contact and smile",
-                        "Deliver your line confidently",
-                        "If positive, suggest exchanging numbers"
-                    ],
-                    "exact_message": "Hey, I see you here often. I'm Alex. Would you want to grab coffee sometime after a workout?",
-                    "exit_line": "No worries at all. Have a great workout!",
-                    "boundary_rule": "If she says no or seems uncomfortable, accept it immediately and leave."
+                        {
+                            "number": 1,
+                            "title": "Schedule call with hiring manager to negotiate",
+                            "description": "Discuss start date flexibility, equity package, and relocation assistance",
+                            "branches": [
+                                {"condition": "success", "action": "Proceed to step 2"},
+                                {"condition": "failure", "action": "Reconsider Option B if terms are non-negotiable"}
+                            ],
+                            "completed": True
+                        },
+                        {
+                            "number": 2,
+                            "title": "Sign offer and set start date",
+                            "description": "Allow 3-4 weeks for transition and relocation",
+                            "branches": [
+                                {"condition": "success", "action": "Proceed to step 3"},
+                                {"condition": "failure", "action": "Negotiate timeline if dates don't work"}
+                            ],
+                            "completed": True
+                        },
+                        {
+                            "number": 3,
+                            "title": "Give notice at current company",
+                            "description": "Standard 2-week notice, offer to help with transition",
+                            "branches": [
+                                {"condition": "success", "action": "Complete handoff documentation"},
+                                {"condition": "failure", "action": "Remain professional regardless of reaction"}
+                            ],
+                            "completed": True
+                        },
+                        {
+                            "number": 4,
+                            "title": "Begin relocation logistics",
+                            "description": "Find housing, set up moving, update address",
+                            "branches": [
+                                {"condition": "success", "action": "Settle in before start date"},
+                                {"condition": "failure", "action": "Request delayed start if needed"}
+                            ],
+                            "completed": True
+                        }
+                    ]
                 },
-                mood_state="confident",
                 policy_version="v1.0",
-                created_at=datetime.utcnow() - timedelta(days=7),
+                created_at=datetime.utcnow() - timedelta(days=14),
             )
             db.add(node1)
 
@@ -133,8 +227,8 @@ async def seed_data():
                 progress_yesno=True,
                 sentiment_2h=1,
                 sentiment_24h=2,
-                brier_score=0.3025,  # (0.45 - 1)^2
-                notes="She said yes! We're getting coffee on Saturday.",
+                brier_score=0.09,  # High confidence was justified
+                notes="Started the new role last week. The team is great and I'm already learning a lot. No regrets about the move!",
             )
             db.add(outcome1)
 
@@ -142,11 +236,13 @@ async def seed_data():
                 decision_id=decision1_id,
                 node_id=node1_id,
                 event_type="resolved",
-                payload_json={"progress_yesno": True, "brier_score": 0.3025},
+                payload_json={"progress_yesno": True, "brier_score": 0.09},
             )
             db.add(event1)
 
-        # Create Demo Decision 2: Double Text (Active)
+        # =============================================
+        # Demo Decision 2: Apartment Choice (Active)
+        # =============================================
         decision2_id = uuid.UUID("22222222-2222-2222-2222-222222222222")
         node2_id = uuid.UUID("22222222-2222-2222-2222-222222222223")
 
@@ -155,11 +251,11 @@ async def seed_data():
             decision2 = Decision(
                 id=decision2_id,
                 user_id=DEMO_USER_ID,
-                title="Should I double text Emma?",
-                situation_text="I matched with Emma on Hinge 5 days ago. We had a great conversation and she was very responsive. I asked her out for drinks and she said 'that sounds fun, let me check my schedule!' That was 3 days ago and I haven't heard back. She still has me on her list and hasn't unmatched. I'm wondering if I should send a follow-up or wait.",
-                situation_type="double_text",
+                title="Which apartment should I rent?",
+                situation_text="I'm choosing between two apartments. Apartment A is in a trendy neighborhood, walking distance to work, but smaller and $300/month more expensive. Apartment B is larger, quieter, better value, but requires a 30-minute commute.",
+                situation_type="personal",
                 status="active",
-                created_at=datetime.utcnow() - timedelta(hours=6),
+                created_at=datetime.utcnow() - timedelta(hours=4),
             )
             db.add(decision2)
 
@@ -167,71 +263,95 @@ async def seed_data():
                 id=node2_id,
                 decision_id=decision2_id,
                 phase="moves",
-                state_json={"summary": "User is wondering whether to send a follow-up message after 3 days of no response"},
-                questions_json={
-                    "questions": [
-                        {"id": "q1", "question": "How long since your last message?", "answer_type": "text", "priority": 95},
-                        {"id": "q2", "question": "What was your last message?", "answer_type": "text", "priority": 90},
-                        {"id": "q3", "question": "Have you double-texted before in this conversation?", "answer_type": "yes_no", "priority": 85},
-                        {"id": "q4", "question": "How was the conversation energy before this?", "answer_type": "single_select", "choices": ["Very engaged", "Moderately engaged", "She was slow to respond"], "priority": 80},
-                    ]
-                },
-                answers_json={
-                    "answers": [
-                        {"question_id": "q1", "value": "3 days"},
-                        {"question_id": "q2", "value": "Asked her out for drinks, she said let me check my schedule"},
-                        {"question_id": "q3", "value": False},
-                        {"question_id": "q4", "value": "Very engaged"},
-                    ]
+                chat_messages_json=[
+                    {
+                        "id": "msg1",
+                        "role": "assistant",
+                        "content": "Finding the right apartment is a decision that affects your daily quality of life. Let me help you think through the trade-offs between these two options systematically.",
+                        "timestamp": (datetime.utcnow() - timedelta(hours=4)).isoformat()
+                    },
+                    {
+                        "id": "msg2",
+                        "role": "user",
+                        "content": "I can't decide! The trendy neighborhood sounds fun but I'm not sure if it's worth the extra money and smaller space.",
+                        "timestamp": (datetime.utcnow() - timedelta(hours=3, minutes=50)).isoformat()
+                    },
+                    {
+                        "id": "msg3",
+                        "role": "assistant",
+                        "content": "Let's break this down. What's your current commute situation, and how much do you value being able to walk to work vs. having more space at home?",
+                        "timestamp": (datetime.utcnow() - timedelta(hours=3, minutes=45)).isoformat()
+                    },
+                    {
+                        "id": "msg4",
+                        "role": "user",
+                        "content": "I currently drive 20 minutes. Walking to work would be amazing and I'd save on gas and parking. But I do work from home 2 days a week, so the extra space would be nice for a home office.",
+                        "timestamp": (datetime.utcnow() - timedelta(hours=3, minutes=30)).isoformat()
+                    },
+                    {
+                        "id": "msg5",
+                        "role": "assistant",
+                        "content": "That's helpful context. Based on your hybrid work arrangement, here are the options I see. Each has different trade-offs depending on whether you prioritize convenience or space.",
+                        "timestamp": (datetime.utcnow() - timedelta(hours=3, minutes=25)).isoformat()
+                    }
+                ],
+                canvas_state_json={
+                    "statement": "Which apartment should I rent: walkable & trendy (A) or spacious & affordable (B)?",
+                    "context_bullets": [
+                        "Apartment A: Trendy neighborhood, walkable to work, smaller, +$300/month",
+                        "Apartment B: Larger, quieter, 30-min commute, better value",
+                        "Currently drive 20 minutes to work",
+                        "Work from home 2 days per week",
+                        "Would save on gas and parking with walkable apartment"
+                    ],
+                    "constraints": [
+                        {"id": "c1", "text": "Must be within budget (including transportation costs)", "type": "hard"},
+                        {"id": "c2", "text": "Need space for home office", "type": "soft"},
+                        {"id": "c3", "text": "Safe neighborhood", "type": "hard"}
+                    ],
+                    "criteria": [
+                        {"id": "cr1", "name": "Commute Quality", "weight": 8, "description": "Time spent commuting and mode of transport"},
+                        {"id": "cr2", "name": "Living Space", "weight": 7, "description": "Square footage and layout functionality"},
+                        {"id": "cr3", "name": "Total Cost", "weight": 8, "description": "Rent plus transportation, parking, etc."},
+                        {"id": "cr4", "name": "Neighborhood Vibe", "weight": 6, "description": "Restaurants, culture, walkability"}
+                    ],
+                    "risks": [
+                        {"id": "r1", "description": "Trendy neighborhood may have noise issues", "severity": "low", "option_id": "A"},
+                        {"id": "r2", "description": "Commute fatigue may impact WFH productivity", "severity": "medium", "option_id": "B"},
+                        {"id": "r3", "description": "Smaller space may feel cramped for WFH", "severity": "medium", "option_id": "A"}
+                    ],
+                    "next_action": "Review options and select one to proceed with"
                 },
                 moves_json={
-                    "moves": [
+                    "options": [
                         {
-                            "move_id": "A",
-                            "title": "Value-Add Follow-up",
-                            "when_to_use": "When there was genuine interest and you have something new to share",
-                            "tradeoff": "Shows initiative but risks seeming pushy",
-                            "gentleman_score": 82,
-                            "risk_level": "low",
-                            "p_raw_progress": 0.55,
-                            "p_calibrated_progress": 0.55,
-                            "scripts": {
-                                "direct": "Hey! Found this great spot with live jazz on Thursdays if you're free this week",
-                                "softer": "No pressure on the drinks - just saw they're doing a comedy night at [place] this week"
-                            },
-                            "timing": "Send during normal hours (10am-8pm)",
-                            "branches": {
-                                "warm": {"next_move": "Confirm the date", "script": "Perfect! Thursday at 7 work?"},
-                                "neutral": {"next_move": "Ball's in her court", "script": "Let me know if that works!"},
-                                "cold": {"next_move": "Accept and move on", "script": "No worries, take care!"}
-                            }
+                            "id": "A",
+                            "title": "Choose Apartment A (Trendy & Walkable)",
+                            "good_if": "You value convenience and lifestyle over space",
+                            "bad_if": "You need dedicated home office space or the budget is tight",
+                            "pros": ["Walk to work (time and money savings)", "Trendy neighborhood amenities", "No parking costs", "Better work-life integration"],
+                            "cons": ["$300/month more in rent", "Smaller space", "May be noisier", "Less room for home office"],
+                            "risks": ["noise", "cramped_space"],
+                            "steps": ["Submit application", "Review lease terms", "Plan space optimization", "Sign lease"],
+                            "confidence": "medium",
+                            "confidence_reasoning": "Good for lifestyle but WFH 2 days/week makes space a real consideration."
                         },
                         {
-                            "move_id": "B",
-                            "title": "Wait It Out",
-                            "when_to_use": "When you want to give her space and see if she re-engages",
-                            "tradeoff": "Preserves dignity but might lose momentum",
-                            "gentleman_score": 88,
-                            "risk_level": "low",
-                            "p_raw_progress": 0.35,
-                            "p_calibrated_progress": 0.35,
-                            "scripts": {
-                                "direct": "N/A - no message sent",
-                                "softer": "N/A - no message sent"
-                            },
-                            "timing": "Wait at least another 3-4 days",
-                            "branches": {
-                                "warm": {"next_move": "Respond enthusiastically", "script": "Great to hear from you! How about [specific plan]?"},
-                                "neutral": {"next_move": "Keep it light", "script": "Hey! How's it going?"},
-                                "cold": {"next_move": "Move on gracefully", "script": "No follow-up needed"}
-                            }
+                            "id": "B",
+                            "title": "Choose Apartment B (Spacious & Affordable)",
+                            "good_if": "You value space for home office and saving money",
+                            "bad_if": "Commuting significantly impacts your quality of life",
+                            "pros": ["More space for home office", "$300/month savings", "Quieter environment", "Better value per square foot"],
+                            "cons": ["30-minute commute 3 days/week", "Less walkable neighborhood", "Car dependency continues"],
+                            "risks": ["commute_fatigue", "isolation"],
+                            "steps": ["Submit application", "Review lease terms", "Plan home office setup", "Sign lease"],
+                            "confidence": "medium",
+                            "confidence_reasoning": "Better for WFH productivity but commute adds up to 3 hours/week."
                         }
-                    ],
-                    "cooldown_recommended": False,
+                    ]
                 },
-                mood_state="anxious",
                 policy_version="v1.0",
-                created_at=datetime.utcnow() - timedelta(hours=6),
+                created_at=datetime.utcnow() - timedelta(hours=4),
             )
             db.add(node2)
 
@@ -239,12 +359,12 @@ async def seed_data():
                 decision_id=decision2_id,
                 node_id=node2_id,
                 event_type="phase2_completed",
-                payload_json={"move_count": 2},
+                payload_json={"option_count": 2},
             )
             db.add(event2)
 
         await db.commit()
-        print("Seed data created successfully!")
+        print("Decision Canvas seed data created successfully!")
 
 
 if __name__ == "__main__":

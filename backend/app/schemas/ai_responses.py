@@ -5,22 +5,44 @@ from app.schemas.question import Question
 from app.schemas.move import Move
 
 
-class Phase1Response(BaseModel):
-    """Expected response from AI for Phase 1."""
+# Decision Canvas - generalized decision types
+DecisionType = Literal[
+    "career",
+    "financial",
+    "business",
+    "personal",
+    "relationship",
+    "health",
+    "education",
+    "major_purchase",
+    "other",
+]
 
-    summary: str = Field(..., description="Brief summary of the situation")
-    situation_type: Literal[
-        "gym_approach",
-        "double_text",
-        "kiss_timing",
-        "first_date_plan",
-        "generic_relationship_next_step",
-    ] = Field(..., description="Detected situation type")
+
+class Phase1Response(BaseModel):
+    """Expected response from AI for Phase 1 - Decision Canvas."""
+
+    summary: str = Field(..., description="Brief summary of the decision situation")
+    situation_type: DecisionType = Field(
+        default="other",
+        description="Type of decision being made"
+    )
     mood_detected: Literal[
-        "calm", "anxious", "angry", "sad", "horny", "tired", "confident", "neutral"
-    ] = Field(..., description="Detected mood state")
+        "calm", "anxious", "stressed", "excited", "uncertain", "confident", "neutral"
+    ] = Field(default="neutral", description="Detected emotional state")
     questions: list[Question] = Field(
-        ..., min_length=5, max_length=15, description="Questions to ask the user"
+        ..., min_length=3, max_length=10, description="Clarifying questions to ask"
+    )
+
+    # Decision Canvas additions
+    decision_statement: Optional[str] = Field(
+        None, description="Clear statement of the decision to be made"
+    )
+    context_bullets: list[str] = Field(
+        default_factory=list, description="Key context points extracted"
+    )
+    initial_constraints: list[dict] = Field(
+        default_factory=list, description="Initial constraints identified"
     )
 
 
