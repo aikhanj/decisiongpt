@@ -40,11 +40,11 @@ export function ChatPanel({
   }, [messages.length]);
 
   return (
-    <div className={cn("flex flex-col h-full bg-background", className)}>
+    <div className={cn("flex flex-col h-full bg-background overflow-hidden", className)}>
       {/* Messages Area */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
+        className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
       >
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center">
@@ -82,29 +82,26 @@ export function ChatPanel({
             {/* Typing indicator */}
             {isLoading && (
               <motion.div
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                className="flex items-center gap-3 px-5 py-3"
+                className="flex justify-start px-5 py-2"
               >
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-secondary to-secondary/80 border border-border/50 flex items-center justify-center shadow-sm">
-                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                </div>
-                <div className="flex gap-1.5 bg-card border border-border/60 rounded-2xl rounded-bl-lg px-4 py-3 shadow-sm">
+                <div className="flex gap-1.5 bg-card border border-border/60 rounded-2xl rounded-bl-md px-4 py-3">
                   <motion.span
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{ duration: 1.2, repeat: Infinity, delay: 0 }}
-                    className="w-2 h-2 rounded-full bg-primary/60"
+                    animate={{ opacity: [0.4, 1, 0.4] }}
+                    transition={{ duration: 1, repeat: Infinity, delay: 0 }}
+                    className="w-2 h-2 rounded-full bg-muted-foreground/50"
                   />
                   <motion.span
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }}
-                    className="w-2 h-2 rounded-full bg-primary/60"
+                    animate={{ opacity: [0.4, 1, 0.4] }}
+                    transition={{ duration: 1, repeat: Infinity, delay: 0.15 }}
+                    className="w-2 h-2 rounded-full bg-muted-foreground/50"
                   />
                   <motion.span
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }}
-                    className="w-2 h-2 rounded-full bg-primary/60"
+                    animate={{ opacity: [0.4, 1, 0.4] }}
+                    transition={{ duration: 1, repeat: Infinity, delay: 0.3 }}
+                    className="w-2 h-2 rounded-full bg-muted-foreground/50"
                   />
                 </div>
               </motion.div>

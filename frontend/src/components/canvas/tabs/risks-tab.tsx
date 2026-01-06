@@ -24,7 +24,7 @@ const severityIcons: Record<RiskLevel, string> = {
   high: "bg-rose-500",
 };
 
-export function RisksTab({ risks, options }: RisksTabProps) {
+export function RisksTab({ risks = [], options = [] }: RisksTabProps) {
   // Also collect risks from options
   const optionRisks = options.flatMap((opt) =>
     opt.risks.map((r) => ({

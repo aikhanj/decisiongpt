@@ -10,6 +10,7 @@ import {
   Pencil,
   Check,
   X,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ interface DecisionHeaderProps {
   onBranchClick?: () => void;
   onOutcomeClick?: () => void;
   onExportClick?: () => void;
+  onDeleteClick?: () => void;
   className?: string;
 }
 
@@ -61,6 +63,7 @@ export function DecisionHeader({
   onBranchClick,
   onOutcomeClick,
   onExportClick,
+  onDeleteClick,
   className,
 }: DecisionHeaderProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -184,6 +187,20 @@ export function DecisionHeader({
               </Button>
             </TooltipTrigger>
             <TooltipContent>Export decision</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onDeleteClick}
+                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Delete decision</TooltipContent>
           </Tooltip>
         </div>
       </motion.header>

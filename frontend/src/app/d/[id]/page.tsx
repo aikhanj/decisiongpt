@@ -20,6 +20,7 @@ import {
   chooseOption,
   createBranch,
   logOutcome,
+  deleteDecision,
   hasApiKey,
 } from "@/lib/api";
 
@@ -202,7 +203,19 @@ export default function DecisionWorkspacePage() {
     async (content: string) => {
       if (!state.currentNode) return;
 
-      setState((prev) => ({ ...prev, chatLoading: true }));
+      // Immediately show user message with animation
+      const userMessage: ChatMessage = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content,
+        timestamp: new Date().toISOString(),
+      };
+
+      setState((prev) => ({
+        ...prev,
+        chatMessages: [...prev.chatMessages, userMessage],
+        chatLoading: true,
+      }));
 
       try {
         const response = await sendChatMessage(
@@ -211,14 +224,10 @@ export default function DecisionWorkspacePage() {
           content
         );
 
-        // Update state with new messages and canvas state
+        // Add assistant response
         setState((prev) => ({
           ...prev,
-          chatMessages: [
-            ...prev.chatMessages,
-            { id: `user-${Date.now()}`, role: "user", content, timestamp: new Date().toISOString() },
-            response.message,
-          ],
+          chatMessages: [...prev.chatMessages, response.message],
           canvasState: response.canvas_state || prev.canvasState,
           options: response.options || prev.options,
           currentNode: {
@@ -362,6 +371,24 @@ export default function DecisionWorkspacePage() {
     []
   );
 
+  // Handle delete decision
+  const handleDeleteDecision = useCallback(async () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this decision? This action cannot be undone."
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await deleteDecision(decisionId);
+      toast.success("Decision deleted");
+      router.push("/");
+    } catch (error) {
+      console.error("Failed to delete decision:", error);
+      toast.error("Failed to delete decision");
+    }
+  }, [decisionId, router]);
+
   // API key not set
   if (apiKeySet === false) {
     return (
@@ -441,6 +468,7 @@ export default function DecisionWorkspacePage() {
         onOutcomeClick={() => {
           // Switch to outcome tab - handled by canvas
         }}
+        onDeleteClick={handleDeleteDecision}
       />
 
       {/* Main content */}

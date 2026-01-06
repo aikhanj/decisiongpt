@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatMessage as ChatMessageType, AdvisorInfo } from "@/types";
 
@@ -12,7 +11,22 @@ interface ChatMessageProps {
 }
 
 function formatTimestamp(timestamp: string): string {
-  const date = new Date(timestamp);
+  // Handle both ISO strings and already-local timestamps
+  let date: Date;
+
+  // If timestamp doesn't have timezone info, treat it as UTC
+  if (timestamp.endsWith('Z') || timestamp.includes('+') || timestamp.includes('-')) {
+    date = new Date(timestamp);
+  } else {
+    // Assume UTC if no timezone specified
+    date = new Date(timestamp + 'Z');
+  }
+
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    return "just now";
+  }
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
@@ -49,35 +63,23 @@ export function ChatMessage({ message, isNew = false, advisor }: ChatMessageProp
 
   return (
     <motion.div
-      initial={isNew ? { opacity: 0, y: 8 } : false}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: "easeOut" }}
+      initial={isNew ? { opacity: 0, y: 20, scale: 0.95 } : false}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        duration: 0.3,
+        ease: [0.25, 0.46, 0.45, 0.94],
+        scale: { duration: 0.2 }
+      }}
       className={cn(
-        "flex gap-3 px-5 py-3",
-        isUser ? "flex-row-reverse" : "flex-row"
+        "flex gap-3 px-5 py-2",
+        isUser ? "justify-end" : "justify-start"
       )}
     >
-      {/* Avatar */}
-      <div
-        className={cn(
-          "flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center shadow-sm",
-          isUser
-            ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground"
-            : "bg-gradient-to-br from-secondary to-secondary/80 text-foreground border border-border/50"
-        )}
-      >
-        {isUser ? (
-          <User className="w-4 h-4" />
-        ) : (
-          <span className="text-lg">{messageAdvisor?.avatar || "🤖"}</span>
-        )}
-      </div>
-
       {/* Content */}
       <div
         className={cn(
-          "flex flex-col gap-1.5 max-w-[75%]",
-          isUser ? "items-end" : "items-start"
+          "flex flex-col gap-1",
+          isUser ? "items-end max-w-[70%]" : "items-start max-w-[80%]"
         )}
       >
         {/* Advisor name for assistant messages */}
@@ -88,15 +90,15 @@ export function ChatMessage({ message, isNew = false, advisor }: ChatMessageProp
         )}
         <div
           className={cn(
-            "px-4 py-3 rounded-2xl shadow-sm",
+            "px-4 py-3 rounded-2xl",
             isUser
-              ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-br-lg"
-              : "bg-card border border-border/60 rounded-bl-lg"
+              ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-br-md shadow-md"
+              : "bg-card border border-border/60 rounded-bl-md"
           )}
         >
           <p className="text-[14px] leading-relaxed whitespace-pre-wrap">{message.content}</p>
         </div>
-        <span className="text-[11px] text-muted-foreground/70 px-1 font-medium">
+        <span className="text-[11px] text-muted-foreground/60 px-1">
           {formatTimestamp(message.timestamp)}
         </span>
       </div>

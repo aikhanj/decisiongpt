@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import {
   Plus,
   Clock,
@@ -13,6 +14,7 @@ import {
   Target,
   GitBranch,
   Settings,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getDecisions } from "@/lib/api";
+import { getDecisions, deleteDecision } from "@/lib/api";
 import type { Decision } from "@/types";
 import { formatDate } from "@/lib/utils";
 
@@ -68,6 +70,26 @@ export default function HomePage() {
     }
     loadDecisions();
   }, []);
+
+  const handleDeleteDecision = async (e: React.MouseEvent, decisionId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this decision? This action cannot be undone."
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await deleteDecision(decisionId);
+      setDecisions((prev) => prev.filter((d) => d.id !== decisionId));
+      toast.success("Decision deleted");
+    } catch (error) {
+      console.error("Failed to delete decision:", error);
+      toast.error("Failed to delete decision");
+    }
+  };
 
   const recentDecisions = decisions.slice(0, 6);
 
@@ -205,16 +227,26 @@ export default function HomePage() {
                   transition={{ delay: index * 0.05 }}
                 >
                   <Link href={`/d/${decision.id}`}>
-                    <Card className="hover:shadow-md transition-all hover:scale-[1.01] cursor-pointer h-full">
+                    <Card className="hover:shadow-md transition-all hover:scale-[1.01] cursor-pointer h-full group">
                       <CardHeader>
                         <div className="flex items-start justify-between gap-2">
                           <CardTitle className="text-lg line-clamp-1">
                             {decision.title || "Untitled Decision"}
                           </CardTitle>
-                          <Badge variant={status.variant} className="shrink-0">
-                            <StatusIcon className="mr-1 h-3 w-3" />
-                            {status.label}
-                          </Badge>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Badge variant={status.variant}>
+                              <StatusIcon className="mr-1 h-3 w-3" />
+                              {status.label}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              onClick={(e) => handleDeleteDecision(e, decision.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <CardDescription>
                           {formatDate(decision.created_at)}
