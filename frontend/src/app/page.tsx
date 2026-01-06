@@ -80,6 +80,12 @@ export default function HomePage() {
             Decision Canvas
           </Link>
           <div className="flex items-center gap-2">
+            <Link href="/advisors">
+              <Button variant="ghost" size="sm">
+                <Settings className="mr-2 h-4 w-4" />
+                Advisors
+              </Button>
+            </Link>
             <Link href="/d/new">
               <Button size="sm">
                 <Plus className="mr-2 h-4 w-4" />

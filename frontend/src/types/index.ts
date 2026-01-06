@@ -24,6 +24,26 @@ export type AnswerType = "yes_no" | "text" | "number" | "single_select";
 export type ConfidenceLevel = "low" | "medium" | "high";
 
 // ============================================
+// ADVISOR TYPES
+// ============================================
+
+export interface AdvisorInfo {
+  id: string;
+  name: string;
+  avatar: string;
+}
+
+export interface Advisor {
+  id: string;
+  name: string;
+  avatar: string;
+  description: string;
+  expertise_keywords: string[];
+  personality_traits: string[];
+  is_system: boolean;
+}
+
+// ============================================
 // CHAT TYPES
 // ============================================
 
@@ -32,6 +52,7 @@ export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: string;
+  advisor?: AdvisorInfo;
 }
 
 // ============================================
@@ -247,6 +268,7 @@ export interface ChatResponse {
   questions?: Question[];
   options?: Option[];
   commit_plan?: CommitPlan;
+  advisor?: AdvisorInfo;
 }
 
 export interface ChatHistoryResponse {

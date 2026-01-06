@@ -40,7 +40,12 @@ export function ChatInput({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+    if (e.key === "Enter") {
+      if (e.shiftKey || e.ctrlKey || e.metaKey) {
+        // Ctrl/Cmd/Shift + Enter = new line (let default behavior happen)
+        return;
+      }
+      // Plain Enter = send
       e.preventDefault();
       handleSend();
     }
@@ -49,7 +54,7 @@ export function ChatInput({
   return (
     <div
       className={cn(
-        "flex items-end gap-2 p-4 border-t bg-background",
+        "flex items-end gap-3 p-4 border-t border-border/50 bg-gradient-to-t from-background to-background/80",
         className
       )}
     >
@@ -63,14 +68,14 @@ export function ChatInput({
           disabled={isLoading || disabled}
           rows={1}
           className={cn(
-            "w-full resize-none rounded-xl border border-input bg-background px-4 py-3",
-            "text-sm placeholder:text-muted-foreground",
-            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+            "w-full resize-none rounded-xl border border-border/60 bg-card px-4 py-3",
+            "text-sm placeholder:text-muted-foreground/60",
+            "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50",
             "disabled:cursor-not-allowed disabled:opacity-50",
-            "max-h-[120px]"
+            "max-h-[120px] shadow-sm transition-all duration-200"
           )}
         />
-        <span className="absolute right-3 bottom-2 text-xs text-muted-foreground">
+        <span className="absolute right-3 bottom-2.5 text-[11px] text-muted-foreground/50 font-medium">
           {message.length > 0 && `${message.length}/5000`}
         </span>
       </div>
@@ -79,12 +84,12 @@ export function ChatInput({
         size="icon"
         onClick={handleSend}
         disabled={!message.trim() || isLoading || disabled}
-        className="h-11 w-11 rounded-xl shrink-0"
+        className="h-11 w-11 rounded-xl shrink-0 shadow-sm transition-all duration-200 hover:shadow-md"
       >
         {isLoading ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <Send className="h-5 w-5" />
+          <Send className="h-4 w-4" />
         )}
       </Button>
     </div>

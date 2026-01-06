@@ -71,6 +71,7 @@ export default function DecisionWorkspacePage() {
   const [branchModalOpen, setBranchModalOpen] = useState(false);
   const [branchLoading, setBranchLoading] = useState(false);
   const [apiKeySet, setApiKeySet] = useState<boolean | null>(null);
+  const [autoStartTriggered, setAutoStartTriggered] = useState(false);
 
   // Check API key on mount
   useEffect(() => {
@@ -94,7 +95,7 @@ export default function DecisionWorkspacePage() {
       if (currentNode) {
         try {
           const chatHistory = await getChatHistory(decisionId, currentNode.id);
-          chatMessages = chatHistory.messages;
+          chatMessages = chatHistory.messages || [];
         } catch (e) {
           // Chat history may not exist yet
           console.log("No chat history yet");
@@ -135,6 +136,66 @@ export default function DecisionWorkspacePage() {
       loadDecision();
     }
   }, [decisionId, apiKeySet, loadDecision]);
+
+  // Auto-start conversation when chat is empty after loading
+  useEffect(() => {
+    const shouldAutoStart =
+      !state.loading &&
+      !state.chatLoading &&
+      !autoStartTriggered &&
+      state.chatMessages.length === 0 &&
+      state.currentNode &&
+      state.decision?.situation_text;
+
+    if (shouldAutoStart) {
+      setAutoStartTriggered(true);
+
+      // Show immediate welcome message
+      const welcomeMessage: ChatMessage = {
+        id: `welcome-${Date.now()}`,
+        role: "assistant",
+        content: "Let me analyze your situation and help you think through this decision...",
+        timestamp: new Date().toISOString(),
+      };
+
+      setState((prev) => ({
+        ...prev,
+        chatMessages: [welcomeMessage],
+        chatLoading: true,
+      }));
+
+      // Trigger AI response
+      sendChatMessage(
+        decisionId,
+        state.currentNode!.id,
+        `Help me with this decision: ${state.decision!.situation_text}`
+      )
+        .then((response) => {
+          setState((prev) => ({
+            ...prev,
+            chatMessages: [response.message],
+            canvasState: response.canvas_state || prev.canvasState,
+            chatLoading: false,
+          }));
+        })
+        .catch((error) => {
+          console.error("Failed to auto-start conversation:", error);
+          setState((prev) => ({
+            ...prev,
+            chatMessages: [],
+            chatLoading: false,
+          }));
+        });
+    }
+  }, [
+    state.loading,
+    state.chatLoading,
+    state.chatMessages.length,
+    state.currentNode,
+    state.decision?.situation_text,
+    autoStartTriggered,
+    decisionId,
+  ]);
 
   // Handle sending chat messages
   const handleSendMessage = useCallback(

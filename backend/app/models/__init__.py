@@ -5,6 +5,7 @@ from app.models.decision_event import DecisionEvent
 from app.models.decision_outcome import DecisionOutcome
 from app.models.calibration_model import CalibrationModel
 from app.models.memory import Memory
+from app.models.advisor import Advisor
 
 __all__ = [
     "User",
@@ -14,4 +15,5 @@ __all__ = [
     "DecisionOutcome",
     "CalibrationModel",
     "Memory",
+    "Advisor",
 ]

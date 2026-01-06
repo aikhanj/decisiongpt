@@ -129,3 +129,25 @@ class DecisionService:
             await self.db.commit()
             await self.db.refresh(decision)
         return decision
+
+    async def delete_decision(self, decision_id: uuid.UUID) -> bool:
+        """Delete a decision and all related data."""
+        decision = await self.get_decision(decision_id)
+        if not decision:
+            return False
+
+        # Delete all related events
+        from sqlalchemy import delete as sql_delete
+        await self.db.execute(
+            sql_delete(DecisionEvent).where(DecisionEvent.decision_id == decision_id)
+        )
+
+        # Delete all nodes (cascade should handle this, but being explicit)
+        await self.db.execute(
+            sql_delete(DecisionNode).where(DecisionNode.decision_id == decision_id)
+        )
+
+        # Delete the decision
+        await self.db.delete(decision)
+        await self.db.commit()
+        return True

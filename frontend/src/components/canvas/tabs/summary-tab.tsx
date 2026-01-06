@@ -24,11 +24,16 @@ export function SummaryTab({
   phase,
   optionsCount,
 }: SummaryTabProps) {
+  // Safe access with defaults
+  const contextBullets = canvasState?.context_bullets ?? [];
+  const constraints = canvasState?.constraints ?? [];
+  const criteria = canvasState?.criteria ?? [];
+
   const hasContent =
-    canvasState.statement ||
-    canvasState.context_bullets.length > 0 ||
-    canvasState.constraints.length > 0 ||
-    canvasState.criteria.length > 0;
+    canvasState?.statement ||
+    contextBullets.length > 0 ||
+    constraints.length > 0 ||
+    criteria.length > 0;
 
   if (!hasContent) {
     return (
@@ -61,7 +66,7 @@ export function SummaryTab({
       </div>
 
       {/* Decision Statement */}
-      {canvasState.statement && (
+      {canvasState?.statement && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -77,7 +82,7 @@ export function SummaryTab({
       )}
 
       {/* Context */}
-      {canvasState.context_bullets.length > 0 && (
+      {contextBullets.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -92,7 +97,7 @@ export function SummaryTab({
             </CardHeader>
             <CardContent>
               <ul className="space-y-2">
-                {canvasState.context_bullets.map((bullet, i) => (
+                {contextBullets.map((bullet, i) => (
                   <motion.li
                     key={i}
                     initial={{ opacity: 0, x: -10 }}
@@ -126,7 +131,7 @@ export function SummaryTab({
         <Card className="bg-muted/50">
           <CardContent className="pt-4 pb-4 text-center">
             <div className="text-2xl font-bold text-primary">
-              {canvasState.constraints.length}
+              {constraints.length}
             </div>
             <div className="text-xs text-muted-foreground">Constraints</div>
           </CardContent>
@@ -134,7 +139,7 @@ export function SummaryTab({
         <Card className="bg-muted/50">
           <CardContent className="pt-4 pb-4 text-center">
             <div className="text-2xl font-bold text-primary">
-              {canvasState.criteria.length}
+              {criteria.length}
             </div>
             <div className="text-xs text-muted-foreground">Criteria</div>
           </CardContent>
@@ -142,7 +147,7 @@ export function SummaryTab({
       </motion.div>
 
       {/* Quick View: Top Constraints */}
-      {canvasState.constraints.length > 0 && (
+      {constraints.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -153,7 +158,7 @@ export function SummaryTab({
             <span className="text-sm font-medium">Key Constraints</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {canvasState.constraints.slice(0, 4).map((c) => (
+            {constraints.slice(0, 4).map((c) => (
               <Badge
                 key={c.id}
                 variant={c.type === "hard" ? "default" : "secondary"}
@@ -162,9 +167,9 @@ export function SummaryTab({
                 {c.text}
               </Badge>
             ))}
-            {canvasState.constraints.length > 4 && (
+            {constraints.length > 4 && (
               <Badge variant="outline" className="text-xs">
-                +{canvasState.constraints.length - 4} more
+                +{constraints.length - 4} more
               </Badge>
             )}
           </div>
@@ -172,7 +177,7 @@ export function SummaryTab({
       )}
 
       {/* Quick View: Top Criteria */}
-      {canvasState.criteria.length > 0 && (
+      {criteria.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -183,7 +188,7 @@ export function SummaryTab({
             <span className="text-sm font-medium">Top Criteria</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {canvasState.criteria
+            {[...criteria]
               .sort((a, b) => b.weight - a.weight)
               .slice(0, 4)
               .map((c) => (

@@ -81,3 +81,18 @@ async def get_decision(
         raise HTTPException(status_code=404, detail="Decision not found")
 
     return DecisionResponse.model_validate(decision)
+
+
+@router.delete("/{decision_id}")
+async def delete_decision(
+    decision_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a decision and all its related data."""
+    service = DecisionService(db)
+    deleted = await service.delete_decision(decision_id)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Decision not found")
+
+    return {"message": "Decision deleted successfully"}

@@ -191,6 +191,23 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=5000, description="User message")
 
 
+class AdvisorInfo(BaseModel):
+    """Information about the advisor responding."""
+
+    id: str = Field(..., description="Advisor ID")
+    name: str = Field(..., description="Advisor display name")
+    avatar: str = Field(..., description="Advisor avatar emoji or URL")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "dating",
+                "name": "The Gentleman",
+                "avatar": "🎩",
+            }
+        }
+
+
 class ChatResponse(BaseModel):
     """Response from chat endpoint."""
 
@@ -200,3 +217,4 @@ class ChatResponse(BaseModel):
     questions: Optional[list] = Field(None, description="Questions if in clarify phase")
     options: Optional[list[Option]] = Field(None, description="Options if in options phase")
     commit_plan: Optional[CommitPlan] = Field(None, description="Commit plan if committed")
+    advisor: Optional[AdvisorInfo] = Field(None, description="The advisor who responded")

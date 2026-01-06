@@ -48,13 +48,12 @@ export function ChatPanel({
       >
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-              <span className="text-2xl">💭</span>
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center mb-5 border border-primary/20">
+              <Loader2 className="w-6 h-6 text-primary animate-spin" />
             </div>
-            <h3 className="text-lg font-medium mb-2">Start the conversation</h3>
-            <p className="text-sm text-muted-foreground max-w-xs">
-              Share what you&apos;re trying to decide and I&apos;ll help you
-              think it through.
+            <h3 className="text-lg font-semibold text-foreground mb-2">Analyzing your decision</h3>
+            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+              I&apos;m reviewing your situation and preparing questions to help clarify your thinking...
             </p>
           </div>
         ) : (
@@ -83,29 +82,29 @@ export function ChatPanel({
             {/* Typing indicator */}
             {isLoading && (
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex items-center gap-2 px-4 py-3"
+                exit={{ opacity: 0, y: -8 }}
+                className="flex items-center gap-3 px-5 py-3"
               >
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-secondary to-secondary/80 border border-border/50 flex items-center justify-center shadow-sm">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1.5 bg-card border border-border/60 rounded-2xl rounded-bl-lg px-4 py-3 shadow-sm">
                   <motion.span
-                    animate={{ opacity: [0.4, 1, 0.4] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: 0 }}
-                    className="w-2 h-2 rounded-full bg-muted-foreground"
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 1.2, repeat: Infinity, delay: 0 }}
+                    className="w-2 h-2 rounded-full bg-primary/60"
                   />
                   <motion.span
-                    animate={{ opacity: [0.4, 1, 0.4] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
-                    className="w-2 h-2 rounded-full bg-muted-foreground"
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }}
+                    className="w-2 h-2 rounded-full bg-primary/60"
                   />
                   <motion.span
-                    animate={{ opacity: [0.4, 1, 0.4] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
-                    className="w-2 h-2 rounded-full bg-muted-foreground"
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }}
+                    className="w-2 h-2 rounded-full bg-primary/60"
                   />
                 </div>
               </motion.div>

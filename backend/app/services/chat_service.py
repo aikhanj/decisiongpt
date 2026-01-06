@@ -11,12 +11,15 @@ from app.ai.gateway import AIGateway
 from app.ai.prompts.system import CHAT_SYSTEM_PROMPT
 from app.ai.prompts.phase1 import get_phase1_prompt, get_chat_clarify_prompt
 from app.ai.prompts.phase2 import get_phase2_prompt, get_execution_plan_prompt, get_chat_options_prompt
+from app.ai.advisors.classifier import AdvisorClassifier, ClassificationResult
+from app.ai.advisors.registry import get_advisor, Advisor
 from app.schemas.canvas import (
     ChatMessage,
     CanvasState,
     Option,
     CommitPlan,
     ChatResponse,
+    AdvisorInfo,
 )
 from app.services.decision_service import DecisionService
 
@@ -29,6 +32,7 @@ class ChatService:
         self.api_key = api_key
         self.ai = AIGateway(api_key)
         self.decision_service = DecisionService(db)
+        self.classifier = AdvisorClassifier(api_key)
 
     async def start_decision(
         self,
@@ -97,6 +101,10 @@ class ChatService:
         questions = (node.questions_json or {}).get("questions", [])
         options = (node.moves_json or {}).get("options", [])
 
+        # Classify the query to select the appropriate advisor
+        classification = await self.classifier.classify(user_message)
+        advisor = get_advisor(classification.advisor_id) or get_advisor("general")
+
         # Add user message
         user_msg = {
             "id": f"msg_{uuid.uuid4().hex[:8]}",
@@ -106,7 +114,7 @@ class ChatService:
         }
         chat_messages.append(user_msg)
 
-        # Determine phase and get appropriate response
+        # Determine phase and get appropriate response using the selected advisor
         phase = node.phase
         response_data = {}
 
@@ -116,18 +124,21 @@ class ChatService:
                 chat_messages,
                 canvas_state,
                 questions,
+                advisor,
             )
         elif phase == NodePhase.MOVES:
             response_data = await self._handle_options_message(
                 chat_messages,
                 canvas_state,
                 options,
+                advisor,
             )
         else:
             # EXECUTE phase - general conversation
             response_data = await self._handle_general_message(
                 chat_messages,
                 canvas_state,
+                advisor,
             )
 
         # Create assistant message
@@ -205,7 +216,7 @@ class ChatService:
             node.chosen_move_id = commit_plan.get("chosen_option_id")
         await self.db.commit()
 
-        # Build response
+        # Build response with advisor info
         return ChatResponse(
             message=ChatMessage(
                 id=assistant_msg["id"],
@@ -218,6 +229,11 @@ class ChatService:
             questions=questions if new_phase == NodePhase.CLARIFY else None,
             options=[Option(**o) for o in new_options] if new_options else None,
             commit_plan=CommitPlan(**commit_plan) if commit_plan else None,
+            advisor=AdvisorInfo(
+                id=advisor.id,
+                name=advisor.name,
+                avatar=advisor.avatar,
+            ) if advisor else None,
         )
 
     async def choose_option(
@@ -302,8 +318,9 @@ class ChatService:
         chat_messages: list[dict],
         canvas_state: dict,
         questions: list[dict],
+        advisor: Advisor,
     ) -> dict:
-        """Handle a message during clarify phase."""
+        """Handle a message during clarify phase using the selected advisor."""
         prompt = get_chat_clarify_prompt(
             situation_text,
             chat_messages,
@@ -319,8 +336,9 @@ class ChatService:
             canvas_state: Optional[dict] = None
             ready_for_options: bool = False
 
+        # Use the advisor's system prompt
         response, _ = await self.ai.generate(
-            system_prompt=CHAT_SYSTEM_PROMPT,
+            system_prompt=advisor.system_prompt,
             user_prompt=prompt,
             response_model=ClarifyChatResponse,
         )
@@ -331,8 +349,9 @@ class ChatService:
         chat_messages: list[dict],
         canvas_state: dict,
         options: list[dict],
+        advisor: Advisor,
     ) -> dict:
-        """Handle a message during options phase."""
+        """Handle a message during options phase using the selected advisor."""
         prompt = get_chat_options_prompt(chat_messages, canvas_state, options)
 
         from pydantic import BaseModel
@@ -343,8 +362,9 @@ class ChatService:
             user_chose_option: Optional[str] = None
             canvas_state_update: Optional[dict] = None
 
+        # Use the advisor's system prompt
         response, _ = await self.ai.generate(
-            system_prompt=CHAT_SYSTEM_PROMPT,
+            system_prompt=advisor.system_prompt,
             user_prompt=prompt,
             response_model=OptionsChatResponse,
         )
@@ -354,13 +374,41 @@ class ChatService:
         self,
         chat_messages: list[dict],
         canvas_state: dict,
+        advisor: Advisor,
     ) -> dict:
-        """Handle general conversation."""
-        # Simple acknowledgment for execute phase
-        return {
-            "response": "I'm here to help. Is there anything specific about executing your plan that you'd like to discuss?",
-            "canvas_state_update": None,
-        }
+        """Handle general conversation using the selected advisor."""
+        from pydantic import BaseModel
+        from typing import Optional
+
+        class GeneralChatResponse(BaseModel):
+            response: str
+            canvas_state_update: Optional[dict] = None
+
+        # Format the conversation history for context
+        history = "\n".join([
+            f"{msg['role'].upper()}: {msg['content']}"
+            for msg in chat_messages[-10:]  # Last 10 messages for context
+        ])
+
+        prompt = f"""Based on the conversation history below, respond to the user's latest message.
+
+## Conversation History:
+{history}
+
+## Instructions:
+- Respond in your character's voice and style
+- Be helpful and engaging
+- Keep your response focused and concise
+- If asked about something outside your expertise, acknowledge it but still try to be helpful
+
+Respond with JSON: {{"response": "your response here"}}"""
+
+        response, _ = await self.ai.generate(
+            system_prompt=advisor.system_prompt,
+            user_prompt=prompt,
+            response_model=GeneralChatResponse,
+        )
+        return response.model_dump()
 
     async def _generate_options(
         self,
