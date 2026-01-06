@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.models.decision import Decision
 from app.models.decision_node import DecisionNode, NodePhase
@@ -214,6 +215,10 @@ class ChatService:
         if commit_plan:
             node.execution_plan_json = commit_plan
             node.chosen_move_id = commit_plan.get("chosen_option_id")
+
+        # Flag JSON fields as modified so SQLAlchemy detects the changes
+        flag_modified(node, "chat_messages_json")
+        flag_modified(node, "canvas_state_json")
         await self.db.commit()
 
         # Build response with advisor info
@@ -285,6 +290,10 @@ class ChatService:
         node.execution_plan_json = commit_plan
         node.chat_messages_json = chat_messages
         node.canvas_state_json = canvas_state
+
+        # Flag JSON fields as modified so SQLAlchemy detects the changes
+        flag_modified(node, "chat_messages_json")
+        flag_modified(node, "canvas_state_json")
         await self.db.commit()
 
         return ChatResponse(

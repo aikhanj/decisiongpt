@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Literal
 
 from app.schemas.question import Question
-from app.schemas.move import Move
+from app.schemas.canvas import Option
 
 
 # Decision Canvas - generalized decision types
@@ -49,14 +49,11 @@ class Phase1Response(BaseModel):
 class Phase2Response(BaseModel):
     """Expected response from AI for Phase 2."""
 
-    moves: list[Move] = Field(
-        ..., min_length=2, max_length=3, description="Move options"
+    options: list[Option] = Field(
+        ..., min_length=2, max_length=3, description="Decision options"
     )
-    cooldown_recommended: bool = Field(
-        False, description="Whether a cooldown is recommended"
-    )
-    cooldown_reason: Optional[str] = Field(
-        None, description="Reason for cooldown recommendation"
+    canvas_state_update: Optional[dict] = Field(
+        None, description="Updates to canvas state (risks, next_action)"
     )
 
 
