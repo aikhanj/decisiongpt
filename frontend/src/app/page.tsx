@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -15,6 +16,8 @@ import {
   GitBranch,
   Settings,
   Trash2,
+  Keyboard,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,9 +28,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getDecisions, deleteDecision } from "@/lib/api";
+import { WelcomeModal } from "@/components/onboarding/welcome-modal";
 import type { Decision } from "@/types";
 import { formatDate } from "@/lib/utils";
+import { useKeyboardShortcuts, SHORTCUTS, getShortcutDisplay } from "@/hooks/use-keyboard-shortcuts";
 
 const statusConfig = {
   active: { icon: Clock, label: "Active", variant: "warning" as const },
@@ -54,8 +65,21 @@ const features = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    shortcuts: [
+      {
+        combo: SHORTCUTS.NEW_DECISION,
+        handler: () => router.push("/d/new"),
+        description: "Create new decision",
+      },
+    ],
+  });
 
   useEffect(() => {
     async function loadDecisions() {
@@ -94,29 +118,59 @@ export default function HomePage() {
   const recentDecisions = decisions.slice(0, 6);
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/" className="font-semibold text-lg">
-            Decision Canvas
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link href="/advisors">
-              <Button variant="ghost" size="sm">
-                <Settings className="mr-2 h-4 w-4" />
-                Advisors
-              </Button>
+    <TooltipProvider>
+      <div className="min-h-screen">
+        {/* Welcome Modal for first-time users */}
+        <WelcomeModal />
+
+        {/* Header */}
+        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container mx-auto px-4 h-14 flex items-center justify-between">
+            <Link href="/" className="font-semibold text-lg flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              Decision Canvas
             </Link>
-            <Link href="/d/new">
-              <Button size="sm">
-                <Plus className="mr-2 h-4 w-4" />
-                New Decision
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="hidden sm:flex"
+                    onClick={() => setShowWelcome(true)}
+                  >
+                    <Keyboard className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="font-medium mb-1">Keyboard Shortcuts</p>
+                  <p className="text-xs text-muted-foreground">
+                    {getShortcutDisplay(SHORTCUTS.NEW_DECISION)} - New Decision
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+              <Link href="/advisors">
+                <Button variant="ghost" size="sm">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Advisors
+                </Button>
+              </Link>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/d/new">
+                    <Button size="sm">
+                      <Plus className="mr-2 h-4 w-4" />
+                      New Decision
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <span className="text-xs">{getShortcutDisplay(SHORTCUTS.NEW_DECISION)}</span>
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
       <main className="container mx-auto py-8 px-4 space-y-12">
       {/* Hero Section */}
@@ -270,6 +324,7 @@ export default function HomePage() {
         )}
       </div>
       </main>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

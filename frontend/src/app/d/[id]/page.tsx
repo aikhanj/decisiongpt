@@ -10,8 +10,11 @@ import { DecisionHeader } from "@/components/layout/decision-header";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { CanvasContainer } from "@/components/canvas/canvas-container";
 import { BranchModal } from "@/components/branching/branch-modal";
+import { ErrorState, getErrorMessage } from "@/components/ui/error-state";
+import { Skeleton, SkeletonMessage, SkeletonCanvas } from "@/components/ui/skeleton";
 import type { BranchReason } from "@/types";
 import { ApiKeyPrompt } from "@/components/settings/api-key-input";
+import { useKeyboardShortcuts, SHORTCUTS } from "@/hooks/use-keyboard-shortcuts";
 
 import {
   getDecision,
@@ -238,7 +241,13 @@ export default function DecisionWorkspacePage() {
         }));
       } catch (error) {
         console.error("Failed to send message:", error);
-        toast.error("Failed to send message");
+        const errorMessage = getErrorMessage(error);
+        toast.error(errorMessage, {
+          action: {
+            label: "Retry",
+            onClick: () => handleSendMessage(content),
+          },
+        });
         setState((prev) => ({ ...prev, chatLoading: false }));
       }
     },
@@ -274,9 +283,15 @@ export default function DecisionWorkspacePage() {
         }));
 
         toast.success("Option selected! Your action plan is ready.");
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to choose option:", error);
-        toast.error("Failed to select option");
+        const errorMessage = error?.detail || error?.message || getErrorMessage(error);
+        toast.error(errorMessage, {
+          action: {
+            label: "Retry",
+            onClick: () => handleChooseOption(optionId),
+          },
+        });
         setState((prev) => ({ ...prev, chatLoading: false }));
       }
     },
@@ -406,18 +421,37 @@ export default function DecisionWorkspacePage() {
     );
   }
 
-  // Loading state
+  // Loading state with skeleton
   if (state.loading || apiKeySet === null) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center space-y-4"
-        >
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-muted-foreground">Loading decision...</p>
-        </motion.div>
+      <div className="h-screen flex flex-col">
+        {/* Skeleton Header */}
+        <div className="flex items-center justify-between gap-4 px-6 py-4 border-b bg-background">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-10 rounded" />
+            <Skeleton className="h-2 w-2 rounded-full" />
+            <Skeleton className="h-6 w-48" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-24 rounded-full" />
+            <Skeleton className="h-8 w-24 rounded-full" />
+            <Skeleton className="h-8 w-24 rounded-full" />
+          </div>
+        </div>
+
+        {/* Skeleton Content */}
+        <div className="flex-1 flex">
+          {/* Chat skeleton */}
+          <div className="w-1/2 border-r p-4 space-y-4">
+            <SkeletonMessage />
+            <SkeletonMessage isUser />
+            <SkeletonMessage />
+          </div>
+          {/* Canvas skeleton */}
+          <div className="w-1/2">
+            <SkeletonCanvas />
+          </div>
+        </div>
       </div>
     );
   }
@@ -426,30 +460,12 @@ export default function DecisionWorkspacePage() {
   if (state.error) {
     return (
       <div className="h-screen flex items-center justify-center p-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-4 max-w-md"
-        >
-          <h2 className="text-xl font-semibold text-destructive">
-            Failed to load decision
-          </h2>
-          <p className="text-muted-foreground">{state.error}</p>
-          <div className="flex gap-2 justify-center">
-            <button
-              onClick={() => router.push("/")}
-              className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80"
-            >
-              Go Home
-            </button>
-            <button
-              onClick={loadDecision}
-              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              Retry
-            </button>
-          </div>
-        </motion.div>
+        <ErrorState
+          title="Failed to load decision"
+          message={state.error}
+          onRetry={loadDecision}
+          showHomeButton
+        />
       </div>
     );
   }

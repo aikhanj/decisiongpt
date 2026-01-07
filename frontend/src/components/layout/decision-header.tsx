@@ -11,6 +11,7 @@ import {
   Check,
   X,
   Trash2,
+  Keyboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { PhaseStepper } from "@/components/ui/phase-stepper";
 import { cn } from "@/lib/utils";
 import type { NodePhase, DecisionStatus } from "@/types";
 import Link from "next/link";
@@ -36,18 +38,6 @@ interface DecisionHeaderProps {
   onDeleteClick?: () => void;
   className?: string;
 }
-
-const phaseLabels: Record<NodePhase, string> = {
-  clarify: "Clarifying",
-  moves: "Options",
-  execute: "Committed",
-};
-
-const phaseColors: Record<NodePhase, string> = {
-  clarify: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-  moves: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-  execute: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-};
 
 const statusColors: Record<DecisionStatus, string> = {
   active: "bg-blue-500",
@@ -147,13 +137,11 @@ export function DecisionHeader({
             </div>
           )}
 
-          {/* Phase badge */}
-          <Badge
-            variant="outline"
-            className={cn("shrink-0", phaseColors[phase])}
-          >
-            {phaseLabels[phase]}
-          </Badge>
+        </div>
+
+        {/* Phase Stepper - Centered */}
+        <div className="hidden md:flex flex-1 justify-center">
+          <PhaseStepper currentPhase={phase} />
         </div>
 
         {/* Right: Actions */}

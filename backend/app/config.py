@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     default_user_id: str = "00000000-0000-0000-0000-000000000001"
     policy_version: str = "v1.0"
 
+    # Redis / Celery Configuration
+    redis_url: str = "redis://localhost:6379/0"
+    celery_broker_url: str = "redis://localhost:6379/0"
+    celery_result_backend: str = "redis://localhost:6379/0"
+    task_timeout_seconds: int = 300  # 5 minutes max for AI tasks
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",")]

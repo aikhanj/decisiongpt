@@ -31,7 +31,7 @@ class StartDecisionResponse(BaseModel):
 
 class ChooseOptionRequest(BaseModel):
     """Request to choose an option."""
-    option_id: str = Field(..., pattern="^[ABC]$")
+    option_id: str = Field(..., min_length=1, max_length=10)  # Allow A, B, C or other formats
 
 
 @router.post("", response_model=StartDecisionResponse)
@@ -119,6 +119,7 @@ async def choose_option(
 
     This explicitly selects an option and generates the action plan.
     """
+    print(f"[DEBUG] choose_option called with option_id: {request.option_id}")
     decision_service = DecisionService(db)
     chat_service = ChatService(db, api_key)
 
@@ -135,13 +136,25 @@ async def choose_option(
     if node.phase != "moves":
         raise HTTPException(
             status_code=400,
-            detail="Can only choose option during options phase"
+            detail=f"Can only choose option during options phase. Current phase: {node.phase}"
+        )
+
+    # Get available options
+    options = (node.moves_json or {}).get("options", [])
+    option_ids = [o.get("id") for o in options]
+
+    if request.option_id not in option_ids:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Option '{request.option_id}' not found. Available: {option_ids}"
         )
 
     # Choose option
-    response = await chat_service.choose_option(node, request.option_id)
-
-    return response
+    try:
+        response = await chat_service.choose_option(node, request.option_id)
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate commit plan: {str(e)}")
 
 
 @router.get("/{decision_id}/nodes/{node_id}/chat-history")

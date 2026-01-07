@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Command } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +12,9 @@ interface ChatInputProps {
   disabled?: boolean;
   className?: string;
 }
+
+// Check if Mac
+const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
 
 export function ChatInput({
   onSend,
@@ -54,44 +57,60 @@ export function ChatInput({
   return (
     <div
       className={cn(
-        "flex items-end gap-3 p-4 border-t border-border/50 bg-gradient-to-t from-background to-background/80",
+        "flex flex-col gap-2 p-4 border-t border-border/50 bg-gradient-to-t from-background to-background/80",
         className
       )}
     >
-      <div className="flex-1 relative">
-        <textarea
-          ref={textareaRef}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={isLoading || disabled}
-          rows={1}
-          className={cn(
-            "w-full resize-none rounded-xl border border-border/60 bg-card px-4 py-3",
-            "text-sm placeholder:text-muted-foreground/60",
-            "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            "max-h-[120px] shadow-sm transition-all duration-200"
+      <div className="flex items-end gap-3">
+        <div className="flex-1 relative">
+          <textarea
+            ref={textareaRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={isLoading || disabled}
+            rows={1}
+            className={cn(
+              "w-full resize-none rounded-xl border border-border/60 bg-card px-4 py-3 pr-16",
+              "text-sm placeholder:text-muted-foreground/60",
+              "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              "max-h-[120px] shadow-sm transition-all duration-200"
+            )}
+          />
+          <span className="absolute right-3 bottom-2.5 text-[11px] text-muted-foreground/50 font-medium">
+            {message.length > 0 && `${message.length}/5000`}
+          </span>
+        </div>
+
+        <Button
+          size="icon"
+          onClick={handleSend}
+          disabled={!message.trim() || isLoading || disabled}
+          className="h-11 w-11 rounded-xl shrink-0 shadow-sm transition-all duration-200 hover:shadow-md"
+        >
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
           )}
-        />
-        <span className="absolute right-3 bottom-2.5 text-[11px] text-muted-foreground/50 font-medium">
-          {message.length > 0 && `${message.length}/5000`}
-        </span>
+        </Button>
       </div>
 
-      <Button
-        size="icon"
-        onClick={handleSend}
-        disabled={!message.trim() || isLoading || disabled}
-        className="h-11 w-11 rounded-xl shrink-0 shadow-sm transition-all duration-200 hover:shadow-md"
-      >
-        {isLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Send className="h-4 w-4" />
+      {/* Keyboard hint */}
+      <div className="flex items-center justify-between text-[11px] text-muted-foreground/60 px-1">
+        <span>
+          Press <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">Enter</kbd> to send
+          <span className="mx-1">·</span>
+          <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">Shift+Enter</kbd> for new line
+        </span>
+        {message.length > 0 && (
+          <span className="text-muted-foreground/80">
+            {5000 - message.length} characters remaining
+          </span>
         )}
-      </Button>
+      </div>
     </div>
   );
 }

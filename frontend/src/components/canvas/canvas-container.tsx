@@ -223,7 +223,7 @@ export function CanvasContainer({
               >
                 <div className="flex items-center gap-2 text-sm font-medium text-primary mb-1">
                   <Clock className="w-4 h-4" />
-                  Next action in 10 min
+                  Next step
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {safeCanvasState.next_action}

@@ -9,6 +9,10 @@ import {
   ThumbsUp,
   ThumbsDown,
   AlertTriangle,
+  Sparkles,
+  TrendingUp,
+  TrendingDown,
+  Minus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +23,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { Option, ConfidenceLevel } from "@/types";
 
@@ -35,12 +45,30 @@ const confidenceColors: Record<ConfidenceLevel, string> = {
   high: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
 };
 
+const confidenceBarColors: Record<ConfidenceLevel, string> = {
+  low: "bg-rose-500",
+  medium: "bg-amber-500",
+  high: "bg-emerald-500",
+};
+
+const confidenceWidths: Record<ConfidenceLevel, string> = {
+  low: "w-1/3",
+  medium: "w-2/3",
+  high: "w-full",
+};
+
+const confidenceIcons: Record<ConfidenceLevel, typeof TrendingUp> = {
+  low: TrendingDown,
+  medium: Minus,
+  high: TrendingUp,
+};
+
 const riskColors: Record<string, string> = {
-  financial_risk: "bg-rose-100 text-rose-700",
-  time_pressure: "bg-amber-100 text-amber-700",
-  irreversible: "bg-purple-100 text-purple-700",
-  uncertainty: "bg-blue-100 text-blue-700",
-  default: "bg-gray-100 text-gray-700",
+  financial_risk: "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400",
+  time_pressure: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400",
+  irreversible: "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400",
+  uncertainty: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400",
+  default: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400",
 };
 
 export function OptionCard({
@@ -50,49 +78,94 @@ export function OptionCard({
   disabled = false,
 }: OptionCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const ConfidenceIcon = confidenceIcons[option.confidence];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: disabled ? 1 : 1.01 }}
-      transition={{ duration: 0.2 }}
-    >
-      <Card
-        className={cn(
-          "relative overflow-hidden transition-all duration-200",
-          isSelected && "ring-2 ring-primary border-primary",
-          !disabled && "hover:shadow-md cursor-pointer"
-        )}
+    <TooltipProvider>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ scale: disabled ? 1 : 1.01 }}
+        transition={{ duration: 0.2 }}
       >
-        {/* Selected indicator */}
-        {isSelected && (
-          <div className="absolute top-0 right-0 w-12 h-12">
-            <div className="absolute top-0 right-0 w-0 h-0 border-t-[48px] border-t-primary border-l-[48px] border-l-transparent" />
-            <Check className="absolute top-1 right-1 w-4 h-4 text-primary-foreground" />
+        <Card
+          className={cn(
+            "relative overflow-hidden transition-all duration-200",
+            isSelected && "ring-2 ring-primary border-primary bg-primary/5",
+            !disabled && "hover:shadow-lg hover:border-primary/50 cursor-pointer",
+            option.confidence === "high" && !isSelected && "border-emerald-200 dark:border-emerald-800/50"
+          )}
+        >
+          {/* Confidence bar at top */}
+          <div className="h-1 bg-muted">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: "100%" }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className={cn("h-full", confidenceWidths[option.confidence], confidenceBarColors[option.confidence])}
+            />
           </div>
-        )}
 
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-lg font-bold text-primary">
-                  Option {option.id}
-                </span>
-                <Badge
-                  variant="outline"
-                  className={cn("text-xs", confidenceColors[option.confidence])}
-                >
-                  {option.confidence.charAt(0).toUpperCase() +
-                    option.confidence.slice(1)}{" "}
-                  confidence
-                </Badge>
+          {/* Selected indicator */}
+          {isSelected && (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="absolute top-3 right-3"
+            >
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground">
+                <Check className="w-5 h-5" />
               </div>
-              <h3 className="text-lg font-semibold">{option.title}</h3>
+            </motion.div>
+          )}
+
+          {/* High confidence sparkle */}
+          {option.confidence === "high" && !isSelected && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute top-3 right-3"
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>Recommended option</TooltipContent>
+              </Tooltip>
+            </motion.div>
+          )}
+
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-4 pr-10">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
+                    Option {option.id}
+                  </span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="outline"
+                        className={cn("text-xs gap-1", confidenceColors[option.confidence])}
+                      >
+                        <ConfidenceIcon className="w-3 h-3" />
+                        {option.confidence.charAt(0).toUpperCase() +
+                          option.confidence.slice(1)}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {option.confidence === "high" && "Strong supporting evidence"}
+                      {option.confidence === "medium" && "Moderate certainty"}
+                      {option.confidence === "low" && "Consider gathering more information"}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <h3 className="text-lg font-semibold leading-tight">{option.title}</h3>
+              </div>
             </div>
-          </div>
-        </CardHeader>
+          </CardHeader>
 
         <CardContent className="space-y-4">
           {/* Good if / Bad if */}
@@ -227,8 +300,9 @@ export function OptionCard({
             <Button
               onClick={onSelect}
               disabled={disabled}
-              className="w-full"
+              className="w-full group"
               variant={isSelected ? "secondary" : "default"}
+              size="lg"
             >
               {isSelected ? (
                 <>
@@ -236,12 +310,22 @@ export function OptionCard({
                   Selected
                 </>
               ) : (
-                "Choose this option"
+                <>
+                  Choose this option
+                  <motion.span
+                    className="ml-2"
+                    initial={{ x: 0 }}
+                    whileHover={{ x: 3 }}
+                  >
+                    →
+                  </motion.span>
+                </>
               )}
             </Button>
           )}
         </CardContent>
       </Card>
-    </motion.div>
+      </motion.div>
+    </TooltipProvider>
   );
 }

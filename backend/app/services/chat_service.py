@@ -221,7 +221,25 @@ class ChatService:
         flag_modified(node, "canvas_state_json")
         await self.db.commit()
 
-        # Build response with advisor info
+        # Build response with defensive parsing
+        try:
+            parsed_canvas = CanvasState(**canvas_state) if canvas_state else CanvasState()
+        except Exception as e:
+            print(f"[WARN] Failed to parse canvas_state: {e}, using empty")
+            parsed_canvas = CanvasState()
+
+        try:
+            parsed_options = [Option(**o) for o in new_options] if new_options else None
+        except Exception as e:
+            print(f"[WARN] Failed to parse options: {e}, using None")
+            parsed_options = None
+
+        try:
+            parsed_commit = CommitPlan(**commit_plan) if commit_plan else None
+        except Exception as e:
+            print(f"[WARN] Failed to parse commit_plan: {e}, using None")
+            parsed_commit = None
+
         return ChatResponse(
             message=ChatMessage(
                 id=assistant_msg["id"],
@@ -229,11 +247,11 @@ class ChatService:
                 content=assistant_msg["content"],
                 timestamp=datetime.fromisoformat(assistant_msg["timestamp"]),
             ),
-            canvas_state=CanvasState(**canvas_state) if canvas_state else CanvasState(),
+            canvas_state=parsed_canvas,
             phase=new_phase,
             questions=questions if new_phase == NodePhase.CLARIFY else None,
-            options=[Option(**o) for o in new_options] if new_options else None,
-            commit_plan=CommitPlan(**commit_plan) if commit_plan else None,
+            options=parsed_options,
+            commit_plan=parsed_commit,
             advisor=AdvisorInfo(
                 id=advisor.id,
                 name=advisor.name,
@@ -296,6 +314,25 @@ class ChatService:
         flag_modified(node, "canvas_state_json")
         await self.db.commit()
 
+        # Build response with defensive parsing
+        try:
+            parsed_canvas = CanvasState(**canvas_state) if canvas_state else CanvasState()
+        except Exception as e:
+            print(f"[WARN] Failed to parse canvas_state: {e}, using empty")
+            parsed_canvas = CanvasState()
+
+        try:
+            parsed_options = [Option(**o) for o in options] if options else None
+        except Exception as e:
+            print(f"[WARN] Failed to parse options: {e}, using None")
+            parsed_options = None
+
+        try:
+            parsed_commit = CommitPlan(**commit_plan) if commit_plan else None
+        except Exception as e:
+            print(f"[WARN] Failed to parse commit_plan: {e}, using None")
+            parsed_commit = None
+
         return ChatResponse(
             message=ChatMessage(
                 id=commit_msg["id"],
@@ -303,10 +340,10 @@ class ChatService:
                 content=commit_msg["content"],
                 timestamp=datetime.fromisoformat(commit_msg["timestamp"]),
             ),
-            canvas_state=CanvasState(**canvas_state) if canvas_state else CanvasState(),
+            canvas_state=parsed_canvas,
             phase=NodePhase.EXECUTE,
-            options=[Option(**o) for o in options] if options else None,
-            commit_plan=CommitPlan(**commit_plan) if commit_plan else None,
+            options=parsed_options,
+            commit_plan=parsed_commit,
         )
 
     async def _run_phase1(self, situation_text: str) -> dict:
