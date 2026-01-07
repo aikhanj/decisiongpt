@@ -17,6 +17,19 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: gentleman-coach-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -28,14 +41,39 @@ services:
       - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-ada-002}
       - USE_VECTOR_MEMORY=${USE_VECTOR_MEMORY:-false}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     ports:
       - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - ./backend:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gentleman-coach-celery
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-gentleman}:${POSTGRES_PASSWORD:-gentleman_secret}@postgres:5432/${POSTGRES_DB:-gentleman_coach}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: celery -A app.celery_app worker --loglevel=info
 
   frontend:
     build:
@@ -56,3 +94,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
