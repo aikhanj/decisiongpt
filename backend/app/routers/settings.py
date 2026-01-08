@@ -2,7 +2,7 @@
 
 import asyncio
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -309,10 +309,8 @@ async def save_settings(
 
 
 @router.post("/test-openai-key")
-async def test_openai_key(api_key: str = ""):
+async def test_openai_key(api_key: str = Query(..., description="OpenAI API key to test")):
     """Test if an OpenAI API key is valid."""
-    if not api_key:
-        raise HTTPException(status_code=400, detail="API key is required")
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
