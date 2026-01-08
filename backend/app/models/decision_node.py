@@ -3,10 +3,10 @@ from datetime import datetime
 from enum import Enum
 
 from sqlalchemy import String, DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.types import UUIDType, JSONType
 
 
 class NodePhase(str, Enum):
@@ -32,31 +32,31 @@ class DecisionNode(Base):
     __tablename__ = "decision_nodes"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        UUIDType, primary_key=True, default=uuid.uuid4
     )
     decision_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("decisions.id", ondelete="CASCADE"), nullable=False
+        UUIDType, ForeignKey("decisions.id", ondelete="CASCADE"), nullable=False
     )
     parent_node_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("decision_nodes.id"), nullable=True
+        UUIDType, ForeignKey("decision_nodes.id"), nullable=True
     )
     phase: Mapped[str] = mapped_column(String(20), nullable=False)
 
     # State data
-    state_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    questions_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    answers_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    moves_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    state_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    questions_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    answers_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    moves_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     chosen_move_id: Mapped[str | None] = mapped_column(String(10), nullable=True)
-    execution_plan_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    execution_plan_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
 
     # Chat and Canvas state (Decision Canvas)
-    chat_messages_json: Mapped[list | None] = mapped_column(JSONB, nullable=True)
-    canvas_state_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    chat_messages_json: Mapped[list | None] = mapped_column(JSONType, nullable=True)
+    canvas_state_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
 
     # Metadata
     mood_state: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    metadata_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
 
     # Versioning
     policy_version: Mapped[str | None] = mapped_column(String(20), nullable=True)

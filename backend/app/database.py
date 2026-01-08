@@ -1,15 +1,42 @@
+import os
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import StaticPool
 
 from app.config import get_settings
 
 settings = get_settings()
 
-engine = create_async_engine(
-    settings.database_url,
-    echo=False,
-    pool_pre_ping=True,
-)
+
+def _create_engine():
+    """Create database engine based on configuration."""
+    db_url = settings.effective_database_url
+
+    if settings.database_type == "sqlite":
+        # Ensure data directory exists for SQLite
+        sqlite_dir = os.path.dirname(settings.sqlite_path)
+        if sqlite_dir and not os.path.exists(sqlite_dir):
+            os.makedirs(sqlite_dir, exist_ok=True)
+
+        # SQLite-specific configuration
+        return create_async_engine(
+            db_url,
+            echo=False,
+            # SQLite requires special handling for async
+            connect_args={"check_same_thread": False},
+            # Use StaticPool for SQLite to avoid connection issues
+            poolclass=StaticPool,
+        )
+    else:
+        # PostgreSQL configuration
+        return create_async_engine(
+            db_url,
+            echo=False,
+            pool_pre_ping=True,
+        )
+
+
+engine = _create_engine()
 
 AsyncSessionLocal = async_sessionmaker(
     engine,
@@ -33,3 +60,9 @@ async def get_db() -> AsyncSession:
             yield session
         finally:
             await session.close()
+
+
+async def init_db():
+    """Initialize database tables (for SQLite/desktop mode)."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)

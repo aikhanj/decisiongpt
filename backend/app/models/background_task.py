@@ -5,10 +5,10 @@ from datetime import datetime
 from enum import Enum
 
 from sqlalchemy import String, DateTime, ForeignKey, Text, Integer
-from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.types import UUIDType, JSONType
 
 
 class TaskStatus(str, Enum):
@@ -32,7 +32,7 @@ class BackgroundTask(Base):
     __tablename__ = "background_tasks"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        UUIDType, primary_key=True, default=uuid.uuid4
     )
     celery_task_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True, index=True
@@ -44,15 +44,15 @@ class BackgroundTask(Base):
 
     # References
     decision_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("decisions.id", ondelete="CASCADE"), nullable=False
+        UUIDType, ForeignKey("decisions.id", ondelete="CASCADE"), nullable=False
     )
     node_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("decision_nodes.id", ondelete="CASCADE"), nullable=False
+        UUIDType, ForeignKey("decision_nodes.id", ondelete="CASCADE"), nullable=False
     )
 
     # Data storage
-    input_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    result_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    input_data: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    result_data: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Timestamps

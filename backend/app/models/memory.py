@@ -2,19 +2,23 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import String, Text, DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.types import UUIDType, JSONType
+from app.config import get_settings
 
-# Conditionally import pgvector
-try:
-    from pgvector.sqlalchemy import Vector
+# Conditionally import pgvector (only for PostgreSQL)
+settings = get_settings()
+VECTOR_AVAILABLE = False
+Vector = None
 
-    VECTOR_AVAILABLE = True
-except ImportError:
-    VECTOR_AVAILABLE = False
-    Vector = None
+if settings.database_type == "postgresql":
+    try:
+        from pgvector.sqlalchemy import Vector
+        VECTOR_AVAILABLE = True
+    except ImportError:
+        pass
 
 
 class Memory(Base):
@@ -23,16 +27,16 @@ class Memory(Base):
     __tablename__ = "memories"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        UUIDType, primary_key=True, default=uuid.uuid4
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+        UUIDType, ForeignKey("users.id"), nullable=False
     )
     node_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("decision_nodes.id"), nullable=True
+        UUIDType, ForeignKey("decision_nodes.id"), nullable=True
     )
     memory_text: Mapped[str] = mapped_column(Text, nullable=False)
-    tags: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    tags: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.utcnow
     )

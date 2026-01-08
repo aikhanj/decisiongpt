@@ -1,12 +1,12 @@
-import hashlib
-import json
-import logging
-from typing import TypeVar, Type
+"""AI Gateway - Factory for LLM providers with unified interface."""
 
-from openai import OpenAI
-from pydantic import BaseModel, ValidationError
+import logging
+from typing import TypeVar, Type, Optional
+
+from pydantic import BaseModel
 
 from app.config import get_settings
+from app.ai.providers import LLMProvider, OpenAIProvider, OllamaProvider
 
 logger = logging.getLogger(__name__)
 
@@ -14,23 +14,52 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class AIGateway:
-    """Gateway for OpenAI API calls with JSON validation (BYOK - Bring Your Own Key)."""
+    """
+    Gateway for LLM API calls with JSON validation.
 
-    def __init__(self, api_key: str):
+    Supports multiple providers:
+    - OpenAI (BYOK - Bring Your Own Key)
+    - Ollama (local, no key required)
+    """
+
+    def __init__(self, api_key: Optional[str] = None, provider: Optional[str] = None):
         """
-        Initialize the AI gateway with user-provided API key.
+        Initialize the AI gateway with appropriate provider.
 
         Args:
-            api_key: User's OpenAI API key (from X-OpenAI-Key header)
+            api_key: API key (required for OpenAI, ignored for Ollama)
+            provider: Override provider from config ("openai" or "ollama")
         """
         settings = get_settings()
-        self.client = OpenAI(api_key=api_key)
-        self.model = settings.openai_model
-        self.embedding_model = settings.openai_embedding_model
+        provider_name = provider or settings.llm_provider
 
-    def _hash_prompt(self, prompt: str) -> str:
-        """Generate SHA-256 hash of the prompt."""
-        return hashlib.sha256(prompt.encode()).hexdigest()[:16]
+        self._provider = self._create_provider(provider_name, api_key, settings)
+
+    def _create_provider(self, provider_name: str, api_key: Optional[str], settings) -> LLMProvider:
+        """Factory method to create the appropriate LLM provider."""
+        if provider_name == "ollama":
+            logger.info(f"Using Ollama provider with model: {settings.ollama_model}")
+            return OllamaProvider(
+                base_url=settings.ollama_base_url,
+                model=settings.ollama_model,
+                embedding_model=settings.ollama_embedding_model,
+            )
+        elif provider_name == "openai":
+            if not api_key:
+                raise ValueError("OpenAI API key is required when using OpenAI provider")
+            logger.info(f"Using OpenAI provider with model: {settings.openai_model}")
+            return OpenAIProvider(
+                api_key=api_key,
+                model=settings.openai_model,
+                embedding_model=settings.openai_embedding_model,
+            )
+        else:
+            raise ValueError(f"Unknown LLM provider: {provider_name}")
+
+    @property
+    def provider_name(self) -> str:
+        """Return the name of the current provider."""
+        return self._provider.provider_name
 
     async def generate(
         self,
@@ -41,7 +70,7 @@ class AIGateway:
         max_retries: int = 1,
     ) -> tuple[T, dict]:
         """
-        Generate a response from OpenAI and validate against Pydantic model.
+        Generate a response and validate against Pydantic model.
 
         Args:
             system_prompt: System prompt for the AI
@@ -53,79 +82,14 @@ class AIGateway:
         Returns:
             Tuple of (validated response, metadata dict with model_version, prompt_hash, tokens)
         """
-        prompt_hash = self._hash_prompt(system_prompt + user_prompt)
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ]
-
-        for attempt in range(max_retries + 1):
-            try:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=temperature,
-                    response_format={"type": "json_object"},
-                )
-
-                content = response.choices[0].message.content
-                metadata = {
-                    "model_version": response.model,
-                    "prompt_hash": prompt_hash,
-                    "input_tokens": response.usage.prompt_tokens if response.usage else 0,
-                    "output_tokens": response.usage.completion_tokens if response.usage else 0,
-                }
-
-                # Parse JSON
-                try:
-                    data = json.loads(content)
-                except json.JSONDecodeError as e:
-                    logger.warning(f"JSON parse error (attempt {attempt + 1}): {e}")
-                    if attempt < max_retries:
-                        # Ask model to fix the JSON
-                        messages.append({"role": "assistant", "content": content})
-                        messages.append({
-                            "role": "user",
-                            "content": f"Your response was not valid JSON. Error: {e}. Please fix and return valid JSON.",
-                        })
-                        continue
-                    raise ValueError(f"Failed to parse JSON after {max_retries + 1} attempts")
-
-                # Validate against Pydantic model
-                try:
-                    validated = response_model.model_validate(data)
-                    logger.info(
-                        f"AI response validated successfully",
-                        extra={
-                            "model": self.model,
-                            "prompt_hash": prompt_hash,
-                            "tokens": metadata.get("output_tokens", 0),
-                        },
-                    )
-                    return validated, metadata
-                except ValidationError as e:
-                    logger.warning(f"Validation error (attempt {attempt + 1}): {e}")
-                    if attempt < max_retries:
-                        # Ask model to fix the response
-                        messages.append({"role": "assistant", "content": content})
-                        messages.append({
-                            "role": "user",
-                            "content": f"Your response did not match the expected schema. Error: {e}. Please fix and return a valid response.",
-                        })
-                        continue
-                    raise ValueError(f"Validation failed after {max_retries + 1} attempts: {e}")
-
-            except Exception as e:
-                logger.error(f"AI generation error: {e}")
-                raise
-
-        raise ValueError("AI generation failed after all retries")
+        return await self._provider.generate(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            response_model=response_model,
+            temperature=temperature,
+            max_retries=max_retries,
+        )
 
     async def get_embedding(self, text: str) -> list[float]:
-        """Get embedding vector for text using OpenAI."""
-        response = self.client.embeddings.create(
-            model=self.embedding_model,
-            input=text,
-        )
-        return response.data[0].embedding
+        """Get embedding vector for text."""
+        return await self._provider.get_embedding(text)

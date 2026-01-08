@@ -3,10 +3,10 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import String, DateTime, Boolean, Text, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.types import UUIDType, JSONType
 
 
 class Advisor(Base):
@@ -15,12 +15,12 @@ class Advisor(Base):
     __tablename__ = "advisors"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        UUIDType, primary_key=True, default=uuid.uuid4
     )
 
     # Owner (null for system advisors)
     user_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+        UUIDType, ForeignKey("users.id"), nullable=True
     )
 
     # Identity
@@ -29,12 +29,12 @@ class Advisor(Base):
     avatar: Mapped[str] = mapped_column(String(50), nullable=False, default="🤖")
     description: Mapped[str] = mapped_column(String(500), nullable=False)
 
-    # Classification
+    # Classification (stored as JSON arrays for cross-database compatibility)
     expertise_keywords: Mapped[list[str]] = mapped_column(
-        ARRAY(String), nullable=False, default=list
+        JSONType, nullable=False, default=list
     )
     personality_traits: Mapped[list[str]] = mapped_column(
-        ARRAY(String), nullable=False, default=list
+        JSONType, nullable=False, default=list
     )
 
     # Prompt

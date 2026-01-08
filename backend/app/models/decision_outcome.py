@@ -3,10 +3,10 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import String, Boolean, Integer, DateTime, ForeignKey, Numeric, Text, CheckConstraint
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.types import UUIDType
 
 
 class DecisionOutcome(Base):
@@ -15,10 +15,10 @@ class DecisionOutcome(Base):
     __tablename__ = "decision_outcomes"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        UUIDType, primary_key=True, default=uuid.uuid4
     )
     node_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("decision_nodes.id", ondelete="CASCADE"), nullable=False
+        UUIDType, ForeignKey("decision_nodes.id", ondelete="CASCADE"), nullable=False
     )
     progress_yesno: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     sentiment_2h: Mapped[int | None] = mapped_column(Integer, nullable=True)
