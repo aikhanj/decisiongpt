@@ -2,51 +2,71 @@
 
 from typing import Optional
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.config import get_settings
+from app.database import get_db
 
 
 async def get_llm_api_key(
+    db: AsyncSession = Depends(get_db),
     x_openai_key: Optional[str] = Header(None, alias="X-OpenAI-Key"),
     x_llm_provider: Optional[str] = Header(None, alias="X-LLM-Provider"),
 ) -> Optional[str]:
     """
-    Extract and validate LLM API key from request header.
+    Extract and validate LLM API key.
 
     For Ollama (local): No API key required
-    For OpenAI (cloud): API key must be provided and start with 'sk-'
+    For OpenAI (cloud): API key from header or saved settings
 
-    The provider can be specified via:
-    1. X-LLM-Provider header ("openai" or "ollama")
-    2. Falls back to config.llm_provider setting
+    Priority:
+    1. X-OpenAI-Key header (per-request override)
+    2. Saved settings in database
+    3. Environment config fallback
 
     Raises:
         HTTPException: 401 if using OpenAI and key is missing/invalid
     """
-    settings = get_settings()
+    config = get_settings()
 
-    # Determine provider from header or config
-    provider = x_llm_provider or settings.llm_provider
+    # Try to get saved settings from DB
+    from app.models.app_settings import AppSettings
+    result = await db.execute(select(AppSettings).limit(1))
+    app_settings = result.scalar_one_or_none()
+
+    # Determine provider (header > saved settings > config)
+    if x_llm_provider:
+        provider = x_llm_provider
+    elif app_settings and app_settings.setup_completed:
+        provider = app_settings.llm_provider
+    else:
+        provider = config.llm_provider
 
     if provider == "ollama":
         # Ollama doesn't need an API key
         return None
 
-    # OpenAI requires API key
-    if not x_openai_key:
+    # OpenAI requires API key - check header first, then saved settings
+    api_key = x_openai_key
+
+    if not api_key and app_settings and app_settings.openai_api_key:
+        api_key = app_settings.openai_api_key
+
+    if not api_key:
         raise HTTPException(
             status_code=401,
-            detail="OpenAI API key required. Please provide your key in the X-OpenAI-Key header, or switch to Ollama for local inference."
+            detail="OpenAI API key required. Please configure it in Settings, or switch to Ollama for local inference."
         )
 
-    if not x_openai_key.startswith("sk-"):
+    if not api_key.startswith("sk-"):
         raise HTTPException(
             status_code=401,
             detail="Invalid OpenAI API key format. Key must start with 'sk-'."
         )
 
-    return x_openai_key
+    return api_key
 
 
 # Backwards compatibility alias

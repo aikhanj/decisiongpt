@@ -7,6 +7,7 @@ from app.models.calibration_model import CalibrationModel
 from app.models.memory import Memory
 from app.models.advisor import Advisor
 from app.models.background_task import BackgroundTask
+from app.models.app_settings import AppSettings
 
 __all__ = [
     "User",
@@ -18,4 +19,5 @@ __all__ = [
     "Memory",
     "Advisor",
     "BackgroundTask",
+    "AppSettings",
 ]

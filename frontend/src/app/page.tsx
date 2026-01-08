@@ -34,8 +34,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getDecisions, deleteDecision } from "@/lib/api";
+import { getDecisions, deleteDecision, getSetupStatus } from "@/lib/api";
 import { WelcomeModal } from "@/components/onboarding/welcome-modal";
+import { SetupWizard } from "@/components/onboarding/setup-wizard";
 import type { Decision } from "@/types";
 import { formatDate } from "@/lib/utils";
 import { useKeyboardShortcuts, SHORTCUTS, getShortcutDisplay } from "@/hooks/use-keyboard-shortcuts";
@@ -69,6 +70,8 @@ export default function HomePage() {
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
+  const [checkingSetup, setCheckingSetup] = useState(true);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -80,6 +83,23 @@ export default function HomePage() {
       },
     ],
   });
+
+  // Check setup status on mount
+  useEffect(() => {
+    async function checkSetup() {
+      try {
+        const status = await getSetupStatus();
+        if (!status.setup_completed) {
+          setShowSetupWizard(true);
+        }
+      } catch (error) {
+        console.error("Failed to check setup status:", error);
+      } finally {
+        setCheckingSetup(false);
+      }
+    }
+    checkSetup();
+  }, []);
 
   useEffect(() => {
     async function loadDecisions() {
@@ -120,8 +140,14 @@ export default function HomePage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen">
-        {/* Welcome Modal for first-time users */}
-        <WelcomeModal />
+        {/* Setup Wizard for first-time setup */}
+        <SetupWizard
+          open={showSetupWizard}
+          onComplete={() => setShowSetupWizard(false)}
+        />
+
+        {/* Welcome Modal for feature tour (after setup) */}
+        {!showSetupWizard && <WelcomeModal />}
 
         {/* Header */}
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
