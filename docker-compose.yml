@@ -36,6 +36,7 @@ services:
       dockerfile: Dockerfile
     container_name: gentleman-coach-backend
     environment:
+      - DATABASE_TYPE=postgresql
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-gentleman}:${POSTGRES_PASSWORD:-gentleman_secret}@postgres:5432/${POSTGRES_DB:-gentleman_coach}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
       - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-ada-002}
@@ -61,6 +62,7 @@ services:
       dockerfile: Dockerfile
     container_name: gentleman-coach-celery
     environment:
+      - DATABASE_TYPE=postgresql
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-gentleman}:${POSTGRES_PASSWORD:-gentleman_secret}@postgres:5432/${POSTGRES_DB:-gentleman_coach}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
       - REDIS_URL=redis://redis:6379/0
