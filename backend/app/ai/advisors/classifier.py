@@ -116,6 +116,7 @@ class AdvisorClassifier:
                 user_prompt=prompt,
                 response_model=ClassificationResult,
                 temperature=0.1,  # Low temperature for consistent classification
+                call_location="classifier.ai_classify",
             )
             return response
         except Exception:

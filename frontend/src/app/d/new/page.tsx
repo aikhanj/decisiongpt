@@ -9,8 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { startDecision, hasApiKey } from "@/lib/api";
+import {
+  startDecision,
+  hasApiKey,
+  getOnboardingStatus,
+  updateUserProfile,
+  completeOnboarding,
+  getTopicSuggestions,
+  type TopicSuggestion,
+} from "@/lib/api";
 import { ApiKeyPrompt } from "@/components/settings/api-key-input";
+import { EssentialsForm } from "@/components/onboarding/essentials-form";
 import { toast } from "sonner";
 
 const decisionExamples = [
@@ -37,10 +46,77 @@ export default function NewDecisionPage() {
   const [situation, setSituation] = useState("");
   const [loading, setLoading] = useState(false);
   const [apiKeySet, setApiKeySet] = useState<boolean | null>(null);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  const [onboardingLoading, setOnboardingLoading] = useState(false);
+  const [topicSuggestions, setTopicSuggestions] = useState<TopicSuggestion[]>([]);
 
   useEffect(() => {
     setApiKeySet(hasApiKey());
+
+    // Check onboarding status
+    const checkOnboarding = async () => {
+      try {
+        const data = await getOnboardingStatus();
+        setOnboardingCompleted(data.completed);
+      } catch {
+        // If API fails, assume completed (graceful degradation)
+        setOnboardingCompleted(true);
+      }
+    };
+
+    // Fetch topic suggestions
+    const fetchSuggestions = async () => {
+      try {
+        const data = await getTopicSuggestions();
+        setTopicSuggestions(data);
+      } catch {
+        // Ignore errors for suggestions
+      }
+    };
+
+    checkOnboarding();
+    fetchSuggestions();
   }, []);
+
+  const handleOnboardingComplete = async (data: {
+    name: string;
+    occupation: string;
+    industry?: string;
+    age_range?: string;
+  }) => {
+    setOnboardingLoading(true);
+    try {
+      // Update profile
+      await updateUserProfile(data);
+
+      // Mark onboarding complete
+      await completeOnboarding();
+
+      setOnboardingCompleted(true);
+      toast.success("Profile saved!", {
+        description: "Let's get started with your first decision.",
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to save profile";
+      toast.error(message);
+    } finally {
+      setOnboardingLoading(false);
+    }
+  };
+
+  const handleOnboardingSkip = async () => {
+    setOnboardingLoading(true);
+    try {
+      // Mark onboarding complete even if skipped
+      await completeOnboarding();
+      setOnboardingCompleted(true);
+    } catch {
+      // Proceed anyway
+      setOnboardingCompleted(true);
+    } finally {
+      setOnboardingLoading(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!hasApiKey()) {
@@ -56,8 +132,20 @@ export default function NewDecisionPage() {
     setLoading(true);
     try {
       const response = await startDecision({ situation_text: situation });
-      toast.success("Decision created! Starting analysis...");
-      router.push(`/d/${response.decision.id}`);
+      const decisionId = response.decision.id;
+
+      // Show toast with clickable action instead of auto-navigating
+      toast.success("Decision created!", {
+        description: "Your decision is being analyzed.",
+        action: {
+          label: "View",
+          onClick: () => router.push(`/d/${decisionId}`),
+        },
+        duration: 10000, // Show for 10 seconds
+      });
+
+      // Clear the form
+      setSituation("");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to create decision";
       toast.error(message);
@@ -86,8 +174,8 @@ export default function NewDecisionPage() {
     </header>
   );
 
-  // Show loading state while checking for API key
-  if (apiKeySet === null) {
+  // Show loading state while checking for API key and onboarding
+  if (apiKeySet === null || onboardingCompleted === null) {
     return (
       <div className="min-h-screen">
         <PageHeader />
@@ -125,6 +213,24 @@ export default function NewDecisionPage() {
             >
               <ApiKeyPrompt onKeySet={() => setApiKeySet(true)} />
             </motion.div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Show onboarding form if not completed
+  if (!onboardingCompleted) {
+    return (
+      <div className="min-h-screen">
+        <PageHeader />
+        <main className="container mx-auto py-8 px-4">
+          <div className="max-w-2xl mx-auto space-y-8">
+            <EssentialsForm
+              onComplete={handleOnboardingComplete}
+              onSkip={handleOnboardingSkip}
+              loading={onboardingLoading}
+            />
           </div>
         </main>
       </div>
@@ -196,6 +302,33 @@ export default function NewDecisionPage() {
                     {situation.length} characters
                   </span>
                 </div>
+
+                {/* Topic suggestions from history */}
+                {topicSuggestions.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Sparkles className="h-4 w-4" />
+                      <span>Based on your history:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {topicSuggestions.map((suggestion) => (
+                        <Badge
+                          key={suggestion.topic}
+                          variant="secondary"
+                          className="cursor-pointer hover:bg-accent transition-colors"
+                          onClick={() =>
+                            setSituation(
+                              `I need to make a decision about ${suggestion.topic.toLowerCase()}...`
+                            )
+                          }
+                        >
+                          {suggestion.topic}
+                          <span className="ml-1 opacity-60">({suggestion.count})</span>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Example prompts */}
                 <div className="space-y-2">

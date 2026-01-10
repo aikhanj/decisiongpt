@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     # Desktop Mode
     desktop_mode: bool = False  # Set to True for desktop app deployment
 
+    # AI Debug Logging
+    ai_debug_logging: bool = False  # Enable detailed AI request/response logging
+    log_level: str = "INFO"  # Logging level: DEBUG, INFO, WARNING, ERROR
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",")]

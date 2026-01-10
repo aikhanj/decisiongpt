@@ -66,6 +66,7 @@ class Phase2Service:
             user_prompt=prompt,
             response_model=Phase2Response,
             temperature=0.5,  # Slightly higher for creative scripts
+            call_location="phase2_service.run_phase2",
         )
 
         # Validate moves against guardrails
@@ -150,6 +151,7 @@ class Phase2Service:
             user_prompt=prompt,
             response_model=ExecutionPlanResponse,
             temperature=0.3,
+            call_location="phase2_service.generate_execution_plan",
         )
 
         execution_plan = ExecutionPlan(

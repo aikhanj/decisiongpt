@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install Python dependencies
 COPY pyproject.toml .
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir -e ".[web]"
 
 # Copy application code
 COPY . .

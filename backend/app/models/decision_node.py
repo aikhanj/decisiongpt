@@ -54,6 +54,11 @@ class DecisionNode(Base):
     chat_messages_json: Mapped[list | None] = mapped_column(JSONType, nullable=True)
     canvas_state_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
 
+    # Conversational adaptive questioning state
+    conversation_state_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    question_history_json: Mapped[list | None] = mapped_column(JSONType, nullable=True)
+    canvas_evolution_json: Mapped[list | None] = mapped_column(JSONType, nullable=True)
+
     # Metadata
     mood_state: Mapped[str | None] = mapped_column(String(20), nullable=True)
     metadata_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)

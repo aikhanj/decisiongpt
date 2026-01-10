@@ -14,6 +14,7 @@ import { ConstraintsTab } from "./tabs/constraints-tab";
 import { RisksTab } from "./tabs/risks-tab";
 import { OutcomeTab } from "./tabs/outcome-tab";
 import { HistoryTab } from "./tabs/history-tab";
+import { ObservationsTab } from "./tabs/observations-tab";
 
 interface CanvasContainerProps {
   canvasState: CanvasState | null;
@@ -110,6 +111,12 @@ export function CanvasContainer({
               className="data-[state=active]:bg-muted rounded-lg"
             >
               History
+            </TabsTrigger>
+            <TabsTrigger
+              value="observations"
+              className="data-[state=active]:bg-muted rounded-lg"
+            >
+              Observations
             </TabsTrigger>
           </TabsList>
         </div>
@@ -209,6 +216,17 @@ export function CanvasContainer({
                 className="p-6"
               >
                 <HistoryTab />
+              </motion.div>
+            </TabsContent>
+
+            <TabsContent value="observations" className="h-full m-0 overflow-y-auto">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="p-6"
+              >
+                <ObservationsTab />
               </motion.div>
             </TabsContent>
           </AnimatePresence>

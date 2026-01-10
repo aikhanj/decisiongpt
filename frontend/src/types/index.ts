@@ -53,6 +53,9 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
   advisor?: AdvisorInfo;
+  // Optional fields for assistant messages with questions
+  question_reason?: string; // Why this question matters (shown as tooltip)
+  suggested_options?: string[]; // Quick reply options for the user to click
 }
 
 // ============================================
@@ -146,6 +149,57 @@ export interface Question {
 export interface Answer {
   question_id: string;
   value: string | number | boolean;
+}
+
+// ============================================
+// ADAPTIVE QUESTION TYPES
+// ============================================
+
+export type QuestioningMode = "quick" | "deep";
+
+export interface CandidateQuestion extends Question {
+  voi_score?: number;
+  targets_canvas_field?: string;
+  uncertainty_reduction_estimate?: number;
+  critical_variable?: boolean;
+  heuristic_trigger?: string | null;
+}
+
+export interface QuestionWithAnswer {
+  question: CandidateQuestion;
+  answer: Answer;
+  answered_at?: string;
+  canvas_impact?: string[];
+}
+
+export interface ConversationState {
+  mode: QuestioningMode;
+  question_cap: number;
+  questions_asked: number;
+  candidate_questions: CandidateQuestion[];
+  asked_questions: QuestionWithAnswer[];
+  current_question: CandidateQuestion | null;
+  canvas_state: CanvasState;
+  last_canvas_uncertainty: number;
+  uncertainty_reduction_history: number[];
+  ready_for_options: boolean;
+  stop_reason?: string | null;
+}
+
+export interface AdaptiveQuestionResponse {
+  next_question: CandidateQuestion | null;
+  canvas_state: CanvasState;
+  conversation_state: ConversationState;
+}
+
+export interface NextQuestionResponse {
+  next_question?: CandidateQuestion | null;
+  canvas_update: CanvasState;
+  ready_for_options: boolean;
+  questions_remaining?: number;
+  progress?: number;
+  stop_reason?: string | null;
+  canvas_impact?: string[];
 }
 
 // ============================================
@@ -361,4 +415,62 @@ export interface Phase2Response {
 export interface ExecutionResponse {
   node: DecisionNode;
   execution_plan: ExecutionPlan;
+}
+
+// ============================================
+// OBSERVATION TYPES
+// ============================================
+
+export type ObservationType =
+  | "pattern"
+  | "value"
+  | "strength"
+  | "growth_area"
+  | "insight";
+
+export type ObservationFeedback = "helpful" | "not_relevant" | "incorrect";
+
+export interface Observation {
+  id: string;
+  observation_text: string;
+  observation_type: ObservationType;
+  confidence: number;
+  related_theme?: string;
+  tags: string[];
+  surfaced_count: number;
+  user_feedback?: ObservationFeedback;
+  created_at: string;
+  decision_id?: string;
+}
+
+export interface ObservationsGrouped {
+  patterns: Observation[];
+  values: Observation[];
+  strengths: Observation[];
+  growth_areas: Observation[];
+  insights: Observation[];
+}
+
+// ============================================
+// USER PROFILE TYPES
+// ============================================
+
+export interface UserProfile {
+  id: string;
+  user_id: string;
+  name?: string;
+  age_range?: string;
+  occupation?: string;
+  industry?: string;
+  specialty?: string;
+  extended_profile: Record<string, unknown>;
+  onboarding_completed: boolean;
+  onboarding_step?: string;
+  context_summary?: string;
+}
+
+export interface TopicSuggestion {
+  topic: string;
+  count: number;
+  recent: boolean;
 }

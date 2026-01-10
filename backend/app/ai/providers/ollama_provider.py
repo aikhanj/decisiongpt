@@ -3,12 +3,15 @@
 import hashlib
 import json
 import logging
+import time
 from typing import TypeVar, Type
 
 from openai import OpenAI
 from pydantic import BaseModel, ValidationError
 
 from .base import LLMProvider
+from app.config import get_settings
+from app.logging_config import sanitize_api_key, truncate_text
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +48,7 @@ class OllamaProvider(LLMProvider):
         self.model = model
         self.embedding_model = embedding_model
         self.base_url = base_url
+        self._api_key = "ollama"  # Store for logging
 
     @property
     def provider_name(self) -> str:
@@ -74,9 +78,23 @@ class OllamaProvider(LLMProvider):
         response_model: Type[T],
         temperature: float = 0.3,
         max_retries: int = 1,
+        call_location: str = "unknown",
     ) -> tuple[T, dict]:
         """Generate a response from Ollama and validate against Pydantic model."""
+        start_time = time.time()
+        settings = get_settings()
         prompt_hash = self._hash_prompt(system_prompt + user_prompt)
+
+        # DEBUG: Log request details if debug logging enabled
+        if settings.ai_debug_logging:
+            logger.debug(
+                f"AI Request\n"
+                f"  Location: {call_location}\n"
+                f"  Provider: {self.provider_name} | Model: {self.model} | Temp: {temperature}\n"
+                f"  System Prompt: {truncate_text(system_prompt)}\n"
+                f"  User Prompt: {truncate_text(user_prompt)}\n"
+                f"  API Key: {sanitize_api_key(self._api_key)}"
+            )
 
         # Enhance system prompt for JSON output
         enhanced_system_prompt = self._build_json_prompt(system_prompt)
@@ -138,13 +156,18 @@ class OllamaProvider(LLMProvider):
                 # Validate against Pydantic model
                 try:
                     validated = response_model.model_validate(data)
+
+                    duration = time.time() - start_time
+                    input_tokens = metadata.get("input_tokens", 0)
+                    output_tokens = metadata.get("output_tokens", 0)
+                    total_tokens = input_tokens + output_tokens
+
+                    # INFO: Always log success with key metrics
                     logger.info(
-                        f"AI response validated successfully",
-                        extra={
-                            "model": self.model,
-                            "prompt_hash": prompt_hash,
-                            "tokens": metadata.get("output_tokens", 0),
-                        },
+                        f"AI Response ✓\n"
+                        f"  Location: {call_location}\n"
+                        f"  Duration: {duration:.2f}s | Tokens: {input_tokens} in / {output_tokens} out ({total_tokens} total)\n"
+                        f"  Response: {truncate_text(str(validated.model_dump()))}"
                     )
                     return validated, metadata
                 except ValidationError as e:
@@ -162,7 +185,14 @@ class OllamaProvider(LLMProvider):
                     raise ValueError(f"Validation failed after {max_retries + 1} attempts: {e}")
 
             except Exception as e:
-                logger.error(f"Ollama generation error: {e}")
+                duration = time.time() - start_time
+                logger.error(
+                    f"AI Response ✗\n"
+                    f"  Location: {call_location}\n"
+                    f"  Duration: {duration:.2f}s\n"
+                    f"  Error: {str(e)}",
+                    exc_info=True
+                )
                 raise
 
         raise ValueError("AI generation failed after all retries")

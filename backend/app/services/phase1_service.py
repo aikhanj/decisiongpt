@@ -44,6 +44,7 @@ class Phase1Service:
             user_prompt=prompt,
             response_model=Phase1Response,
             temperature=0.3,
+            call_location="phase1_service.run_phase1",
         )
 
         # Get template for additional context

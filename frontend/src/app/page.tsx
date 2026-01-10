@@ -12,8 +12,6 @@ import {
   Archive,
   ChevronRight,
   Layers,
-  Target,
-  GitBranch,
   Settings,
   Trash2,
   Keyboard,
@@ -46,28 +44,11 @@ const statusConfig = {
   archived: { icon: Archive, label: "Archived", variant: "secondary" as const },
 };
 
-const features = [
-  {
-    icon: Layers,
-    title: "Structured Thinking",
-    description: "Break down complex decisions into clear options with pros, cons, and risks",
-  },
-  {
-    icon: Target,
-    title: "AI-Powered Analysis",
-    description: "Get intelligent options tailored to your specific situation and constraints",
-  },
-  {
-    icon: GitBranch,
-    title: "Decision Branching",
-    description: "Explore alternative paths without losing your original analysis",
-  },
-];
-
 export default function HomePage() {
   const router = useRouter();
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
 
   // Keyboard shortcuts
@@ -84,10 +65,12 @@ export default function HomePage() {
   useEffect(() => {
     async function loadDecisions() {
       try {
+        setError(null);
         const data = await getDecisions();
         setDecisions(data);
-      } catch (error) {
-        console.error("Failed to load decisions:", error);
+      } catch (err) {
+        console.error("Failed to load decisions:", err);
+        setError(err instanceof Error ? err.message : "Failed to load decisions");
       } finally {
         setLoading(false);
       }
@@ -138,6 +121,7 @@ export default function HomePage() {
                     size="icon"
                     className="hidden sm:flex"
                     onClick={() => setShowWelcome(true)}
+                    aria-label="View keyboard shortcuts"
                   >
                     <Keyboard className="h-4 w-4" />
                   </Button>
@@ -172,56 +156,33 @@ export default function HomePage() {
           </div>
         </header>
 
-      <main className="container mx-auto py-8 px-4 space-y-12">
-      {/* Hero Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center space-y-6 py-8"
-      >
-        <div className="space-y-2">
-          <h1 className="text-5xl font-bold tracking-tight">Decision Canvas</h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Make better decisions with AI-powered structured thinking.
-            Clarify your situation, explore options, and commit with confidence.
-          </p>
-        </div>
-        <Link href="/d/new">
-          <Button size="lg" className="mt-4 h-12 px-8 text-lg">
-            <Plus className="mr-2 h-5 w-5" />
-            New Decision
-          </Button>
-        </Link>
-      </motion.div>
+      <main id="main-content" className="container mx-auto py-8 px-4 space-y-12">
+      {/* Hero Section with gradient background */}
+      <div className="relative py-16 sm:py-24">
+        {/* Gradient backgrounds */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-accent/5 to-background -z-10" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_50%)] -z-10" />
 
-      {/* Features */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="grid gap-6 md:grid-cols-3"
-      >
-        {features.map((feature, index) => {
-          const Icon = feature.icon;
-          return (
-            <Card key={feature.title} className="bg-muted/50">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-4">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Icon className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-1">{feature.title}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {feature.description}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center space-y-6"
+        >
+          <div className="space-y-2">
+            <h1 className="text-5xl font-bold tracking-tight">Decision Canvas</h1>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Make better decisions with AI-powered structured thinking.
+              Clarify your situation, explore options, and commit with confidence.
+            </p>
+          </div>
+          <Link href="/d/new">
+            <Button size="lg" className="mt-4 h-12 px-8 text-lg">
+              <Plus className="mr-2 h-5 w-5" />
+              New Decision
+            </Button>
+          </Link>
+        </motion.div>
+      </div>
 
       {/* Recent Decisions */}
       <div className="space-y-4">
@@ -249,6 +210,31 @@ export default function HomePage() {
               </Card>
             ))}
           </div>
+        ) : error ? (
+          <Card className="border-destructive/50">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                <Archive className="w-8 h-8 text-destructive" />
+              </div>
+              <h3 className="text-lg font-medium mb-2">Failed to load decisions</h3>
+              <p className="text-muted-foreground mb-4 text-center max-w-sm text-sm">
+                {error}
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setLoading(true);
+                  setError(null);
+                  getDecisions()
+                    .then(setDecisions)
+                    .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
+                    .finally(() => setLoading(false));
+                }}
+              >
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
         ) : recentDecisions.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
@@ -297,6 +283,7 @@ export default function HomePage() {
                               size="icon"
                               className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                               onClick={(e) => handleDeleteDecision(e, decision.id)}
+                              aria-label={`Delete decision: ${decision.title || 'Untitled'}`}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

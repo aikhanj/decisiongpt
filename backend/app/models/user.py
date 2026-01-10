@@ -32,3 +32,9 @@ class User(Base):
     memories: Mapped[list["Memory"]] = relationship(
         "Memory", back_populates="user", lazy="selectin"
     )
+    profile: Mapped["UserProfile | None"] = relationship(
+        "UserProfile", back_populates="user", uselist=False, lazy="selectin"
+    )
+    observations: Mapped[list["Observation"]] = relationship(
+        "Observation", back_populates="user", lazy="selectin"
+    )

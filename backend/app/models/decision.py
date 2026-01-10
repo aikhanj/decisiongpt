@@ -55,3 +55,6 @@ class Decision(Base):
     events: Mapped[list["DecisionEvent"]] = relationship(
         "DecisionEvent", back_populates="decision", lazy="selectin"
     )
+    observations: Mapped[list["Observation"]] = relationship(
+        "Observation", back_populates="decision", lazy="selectin"
+    )

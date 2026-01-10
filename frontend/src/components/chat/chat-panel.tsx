@@ -64,6 +64,12 @@ export function ChatPanel({
                   key={message.id}
                   message={message}
                   isNew={index === messages.length - 1}
+                  onQuickReply={
+                    // Only enable quick reply for the last assistant message
+                    index === messages.length - 1 && message.role === "assistant"
+                      ? onSendMessage
+                      : undefined
+                  }
                 />
               ))}
             </AnimatePresence>

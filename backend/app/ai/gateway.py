@@ -68,6 +68,7 @@ class AIGateway:
         response_model: Type[T],
         temperature: float = 0.3,
         max_retries: int = 1,
+        call_location: str = "unknown",
     ) -> tuple[T, dict]:
         """
         Generate a response and validate against Pydantic model.
@@ -78,6 +79,7 @@ class AIGateway:
             response_model: Pydantic model to validate response against
             temperature: Sampling temperature (default 0.3 for structured output)
             max_retries: Number of retries on validation failure
+            call_location: Location in code where this call originated (for logging)
 
         Returns:
             Tuple of (validated response, metadata dict with model_version, prompt_hash, tokens)
@@ -88,6 +90,7 @@ class AIGateway:
             response_model=response_model,
             temperature=temperature,
             max_retries=max_retries,
+            call_location=call_location,
         )
 
     async def get_embedding(self, text: str) -> list[float]:

@@ -4,7 +4,14 @@ from fastapi.middleware.cors import CORSMiddleware
 import httpx
 
 from app.config import get_settings
-from app.routers import decisions_router, nodes_router
+from app.logging_config import setup_logging
+from app.routers import (
+    decisions_router,
+    nodes_router,
+    adaptive_questions_router,
+    profile_router,
+    observations_router,
+)
 from app.routers.chat import router as chat_router
 from app.routers.advisors import router as advisors_router
 
@@ -12,6 +19,9 @@ from app.routers.advisors import router as advisors_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown events."""
+    # FIRST: Setup logging
+    setup_logging()
+
     # Startup
     settings = get_settings()
     print(f"Starting Decision Canvas API")
@@ -54,6 +64,9 @@ app.include_router(decisions_router, prefix="/api")
 app.include_router(nodes_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
 app.include_router(advisors_router, prefix="/api")
+app.include_router(adaptive_questions_router, prefix="/api")
+app.include_router(profile_router, prefix="/api")
+app.include_router(observations_router, prefix="/api")
 
 # Include tasks router only when Celery is available (web mode)
 if not settings.desktop_mode:

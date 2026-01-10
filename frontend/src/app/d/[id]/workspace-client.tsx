@@ -108,8 +108,8 @@ export default function DecisionWorkspaceClient() {
 
       // Extract canvas state and other data from current node
       const canvasState = currentNode?.canvas_state_json as CanvasState | null;
-      const options = (currentNode as any)?.options_json || [];
-      const commitPlan = (currentNode as any)?.commit_plan_json || null;
+      const options = (currentNode as any)?.moves_json?.options || [];
+      const commitPlan = (currentNode as any)?.execution_plan_json || null;
       const outcome = (currentNode as any)?.outcome || null;
 
       setState({
@@ -366,8 +366,8 @@ export default function DecisionWorkspaceClient() {
           ...prev,
           currentNode: node,
           canvasState: node.canvas_state_json as CanvasState | null,
-          options: (node as any)?.options_json || [],
-          commitPlan: (node as any)?.commit_plan_json || null,
+          options: (node as any)?.moves_json?.options || [],
+          commitPlan: (node as any)?.execution_plan_json || null,
         }));
       }
     },

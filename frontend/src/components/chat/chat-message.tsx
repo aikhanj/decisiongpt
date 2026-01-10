@@ -1,13 +1,22 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { ChatMessage as ChatMessageType, AdvisorInfo } from "@/types";
 
 interface ChatMessageProps {
   message: ChatMessageType;
   isNew?: boolean;
   advisor?: AdvisorInfo;
+  onQuickReply?: (option: string) => void;
 }
 
 function formatTimestamp(timestamp: string): string {
@@ -40,7 +49,7 @@ function formatTimestamp(timestamp: string): string {
   return date.toLocaleDateString();
 }
 
-export function ChatMessage({ message, isNew = false, advisor }: ChatMessageProps) {
+export function ChatMessage({ message, isNew = false, advisor, onQuickReply }: ChatMessageProps) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
 
@@ -90,14 +99,53 @@ export function ChatMessage({ message, isNew = false, advisor }: ChatMessageProp
         )}
         <div
           className={cn(
-            "px-4 py-3 rounded-2xl",
+            "px-4 py-3 rounded-2xl relative",
             isUser
               ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-br-md shadow-md"
               : "bg-card border border-border/60 rounded-bl-md"
           )}
         >
           <p className="text-[14px] leading-relaxed whitespace-pre-wrap">{message.content}</p>
+
+          {/* Question reason tooltip for assistant messages */}
+          {!isUser && message.question_reason && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button className="absolute -right-2 -top-2 p-1 rounded-full bg-muted hover:bg-accent transition-colors">
+                    <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p className="text-sm">{message.question_reason}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
+
+        {/* Quick reply options for assistant messages */}
+        {!isUser && message.suggested_options && message.suggested_options.length > 0 && onQuickReply && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex flex-wrap gap-2 mt-2 px-1"
+          >
+            {message.suggested_options.map((option, idx) => (
+              <Button
+                key={idx}
+                variant="outline"
+                size="sm"
+                className="text-xs h-8 px-3 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
+                onClick={() => onQuickReply(option)}
+              >
+                {option}
+              </Button>
+            ))}
+          </motion.div>
+        )}
+
         <span className="text-[11px] text-muted-foreground/60 px-1">
           {formatTimestamp(message.timestamp)}
         </span>

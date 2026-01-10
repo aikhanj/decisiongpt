@@ -11,6 +11,13 @@ class ChatMessage(BaseModel):
     role: Literal["user", "assistant", "system"] = Field(..., description="Message role")
     content: str = Field(..., description="Message content")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+    # Optional fields for assistant messages with questions
+    question_reason: Optional[str] = Field(
+        None, description="Why this question matters (shown as tooltip)"
+    )
+    suggested_options: Optional[list[str]] = Field(
+        None, description="Quick reply options for the user to click"
+    )
 
     class Config:
         json_schema_extra = {

@@ -33,10 +33,6 @@ celery = [
 web = [
     "gentleman-coach[postgres,celery]",
 ]
-# Desktop deployment (minimal)
-desktop = [
-    # No extra dependencies needed - uses SQLite and direct async calls
-]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
@@ -44,7 +40,6 @@ dev = [
     "black>=24.1.0",
     "ruff>=0.1.14",
     "mypy>=1.8.0",
-    "pyinstaller>=6.0.0",
 ]
 
 [build-system]

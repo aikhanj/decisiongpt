@@ -14,6 +14,9 @@ from app.ai.prompts.phase1 import get_phase1_prompt, get_chat_clarify_prompt
 from app.ai.prompts.phase2 import get_phase2_prompt, get_execution_plan_prompt, get_chat_options_prompt
 from app.ai.advisors.classifier import AdvisorClassifier, ClassificationResult
 from app.ai.advisors.registry import get_advisor, Advisor
+from app.ai.advisors.prompts.core_personality import build_enhanced_system_prompt
+from app.services.psychologist_engine import PsychologistEngine, create_initial_state
+from app.schemas.psychologist_state import PsychologistConversationState
 from app.schemas.canvas import (
     ChatMessage,
     CanvasState,
@@ -23,6 +26,8 @@ from app.schemas.canvas import (
     AdvisorInfo,
 )
 from app.services.decision_service import DecisionService
+from app.services.user_context_service import UserContextService
+from app.services.observation_service import ObservationService
 
 
 class ChatService:
@@ -34,6 +39,9 @@ class ChatService:
         self.ai = AIGateway(api_key)
         self.decision_service = DecisionService(db)
         self.classifier = AdvisorClassifier(api_key)
+        self.user_context_service = UserContextService(db)
+        self.observation_service = ObservationService(db, api_key)
+        self.psychologist_engine = PsychologistEngine(self.ai)
 
     async def start_decision(
         self,
@@ -101,6 +109,13 @@ class ChatService:
         canvas_state = node.canvas_state_json or {}
         questions = (node.questions_json or {}).get("questions", [])
         options = (node.moves_json or {}).get("options", [])
+        user_id = node.decision.user_id
+
+        # Build user context for personalization
+        user_context = await self.user_context_service.build_user_context(
+            user_id,
+            decision_context=node.decision.situation_text,
+        )
 
         # Classify the query to select the appropriate advisor
         classification = await self.classifier.classify(user_message)
@@ -121,11 +136,13 @@ class ChatService:
 
         if phase == NodePhase.CLARIFY:
             response_data = await self._handle_clarify_message(
-                node.decision.situation_text,
+                node,
+                user_message,
                 chat_messages,
                 canvas_state,
                 questions,
                 advisor,
+                user_context,
             )
         elif phase == NodePhase.MOVES:
             response_data = await self._handle_options_message(
@@ -133,6 +150,7 @@ class ChatService:
                 canvas_state,
                 options,
                 advisor,
+                user_context,
             )
         else:
             # EXECUTE phase - general conversation
@@ -140,15 +158,21 @@ class ChatService:
                 chat_messages,
                 canvas_state,
                 advisor,
+                user_context,
             )
 
-        # Create assistant message
+        # Create assistant message with optional question metadata
         assistant_msg = {
             "id": f"msg_{uuid.uuid4().hex[:8]}",
             "role": "assistant",
             "content": response_data.get("response", "I understand. Let me help you with that."),
             "timestamp": datetime.utcnow().isoformat(),
         }
+        # Add question metadata if present (for tooltip and quick reply options)
+        if response_data.get("question_reason"):
+            assistant_msg["question_reason"] = response_data["question_reason"]
+        if response_data.get("suggested_options"):
+            assistant_msg["suggested_options"] = response_data["suggested_options"]
         chat_messages.append(assistant_msg)
 
         # Update canvas state
@@ -246,6 +270,8 @@ class ChatService:
                 role="assistant",
                 content=assistant_msg["content"],
                 timestamp=datetime.fromisoformat(assistant_msg["timestamp"]),
+                question_reason=assistant_msg.get("question_reason"),
+                suggested_options=assistant_msg.get("suggested_options"),
             ),
             canvas_state=parsed_canvas,
             phase=new_phase,
@@ -355,40 +381,126 @@ class ChatService:
             system_prompt=CHAT_SYSTEM_PROMPT,
             user_prompt=prompt,
             response_model=Phase1Response,
+            call_location="chat_service.run_phase1_analysis",
         )
         return response.model_dump()
 
     async def _handle_clarify_message(
         self,
-        situation_text: str,
+        node: DecisionNode,
+        user_message: str,
         chat_messages: list[dict],
         canvas_state: dict,
         questions: list[dict],
         advisor: Advisor,
+        user_context: Optional[str] = None,
     ) -> dict:
-        """Handle a message during clarify phase using the selected advisor."""
-        prompt = get_chat_clarify_prompt(
-            situation_text,
-            chat_messages,
-            canvas_state,
-        )
+        """Handle a message during clarify phase using the Psychologist Engine.
 
-        # Simple response model for clarify chat
-        from pydantic import BaseModel
-        from typing import Optional
+        The Psychologist Engine provides:
+        - Phase-aware conversation flow (Opening → Exploration → Deepening → Insight → Closing)
+        - Thread tracking (follow interesting topics deeper, not wider)
+        - Forced synthesis (must reflect back every 3 exchanges)
+        - Pattern/contradiction detection
+        - Response validation (no shallow "What kind of X?" questions)
+        """
+        import logging
+        logger = logging.getLogger(__name__)
 
-        class ClarifyChatResponse(BaseModel):
-            response: str
-            canvas_state: Optional[dict] = None
-            ready_for_options: bool = False
+        # Load or create psychologist conversation state
+        psychologist_state = None
+        if node.conversation_state_json:
+            try:
+                psychologist_state = PsychologistConversationState(
+                    **node.conversation_state_json
+                )
+            except Exception as e:
+                logger.warning(f"Failed to load psychologist state: {e}, creating new")
+                psychologist_state = None
 
-        # Use the advisor's system prompt
-        response, _ = await self.ai.generate(
-            system_prompt=advisor.system_prompt,
-            user_prompt=prompt,
-            response_model=ClarifyChatResponse,
-        )
-        return response.model_dump()
+        if psychologist_state is None:
+            psychologist_state = create_initial_state()
+
+        # Use the psychologist engine to process the message
+        try:
+            result = await self.psychologist_engine.process_message(
+                user_message=user_message,
+                situation_text=node.decision.situation_text,
+                chat_history=chat_messages,
+                current_state=psychologist_state,
+            )
+
+            # Save updated state back to node (use mode='json' for JSON-compatible enum values)
+            node.conversation_state_json = result.state.model_dump(mode='json')
+            flag_modified(node, "conversation_state_json")
+
+            # Log phase info for debugging
+            logger.info(
+                f"Psychologist: Phase={result.state.current_phase.value}, "
+                f"Move={result.response_move.value}, "
+                f"Threads={len(result.state.active_threads)}, "
+                f"Observations={len(result.state.observations)}"
+            )
+
+            # Build canvas state update from synthesis points
+            canvas_update = {}
+            if result.synthesis_points:
+                existing_context = canvas_state.get("context_bullets", [])
+                new_context = [
+                    p for p in result.synthesis_points
+                    if p not in existing_context
+                ]
+                if new_context:
+                    canvas_update["context_bullets"] = existing_context + new_context
+
+            if result.core_issue:
+                canvas_update["statement"] = result.core_issue
+
+            return {
+                "response": result.response,
+                "question_reason": result.question_reason,
+                "suggested_options": result.suggested_options,
+                "canvas_state": canvas_update if canvas_update else None,
+                "ready_for_options": result.ready_for_options,
+            }
+
+        except Exception as e:
+            # Fallback to original prompt-based approach if engine fails
+            logger.error(f"Psychologist engine failed: {e}, falling back to basic prompt")
+
+            prompt = get_chat_clarify_prompt(
+                node.decision.situation_text,
+                chat_messages,
+                canvas_state,
+            )
+
+            from pydantic import BaseModel, Field
+            from typing import Optional as Opt
+
+            class ClarifyChatResponse(BaseModel):
+                response: str
+                question_reason: Opt[str] = Field(
+                    None, description="Why this question matters (shown as tooltip)"
+                )
+                suggested_options: Opt[list[str]] = Field(
+                    None, description="Quick reply options for the user"
+                )
+                canvas_state: Opt[dict] = None
+                ready_for_options: bool = False
+
+            enhanced_prompt = build_enhanced_system_prompt(
+                advisor.system_prompt,
+                user_context=user_context,
+                include_observation_prompt=True,
+            )
+
+            response, _ = await self.ai.generate(
+                system_prompt=enhanced_prompt,
+                user_prompt=prompt,
+                response_model=ClarifyChatResponse,
+                call_location="chat_service.clarify_phase",
+            )
+            return response.model_dump()
 
     async def _handle_options_message(
         self,
@@ -396,23 +508,31 @@ class ChatService:
         canvas_state: dict,
         options: list[dict],
         advisor: Advisor,
+        user_context: Optional[str] = None,
     ) -> dict:
         """Handle a message during options phase using the selected advisor."""
         prompt = get_chat_options_prompt(chat_messages, canvas_state, options)
 
         from pydantic import BaseModel
-        from typing import Optional
+        from typing import Optional as Opt
 
         class OptionsChatResponse(BaseModel):
             response: str
-            user_chose_option: Optional[str] = None
-            canvas_state_update: Optional[dict] = None
+            user_chose_option: Opt[str] = None
+            canvas_state_update: Opt[dict] = None
 
-        # Use the advisor's system prompt
+        # Build enhanced system prompt with user context and analytical personality
+        enhanced_prompt = build_enhanced_system_prompt(
+            advisor.system_prompt,
+            user_context=user_context,
+            include_observation_prompt=True,
+        )
+
         response, _ = await self.ai.generate(
-            system_prompt=advisor.system_prompt,
+            system_prompt=enhanced_prompt,
             user_prompt=prompt,
             response_model=OptionsChatResponse,
+            call_location="chat_service.options_phase",
         )
         return response.model_dump()
 
@@ -421,14 +541,15 @@ class ChatService:
         chat_messages: list[dict],
         canvas_state: dict,
         advisor: Advisor,
+        user_context: Optional[str] = None,
     ) -> dict:
         """Handle general conversation using the selected advisor."""
         from pydantic import BaseModel
-        from typing import Optional
+        from typing import Optional as Opt
 
         class GeneralChatResponse(BaseModel):
             response: str
-            canvas_state_update: Optional[dict] = None
+            canvas_state_update: Opt[dict] = None
 
         # Format the conversation history for context
         history = "\n".join([
@@ -449,10 +570,18 @@ class ChatService:
 
 Respond with JSON: {{"response": "your response here"}}"""
 
+        # Build enhanced system prompt with user context and analytical personality
+        enhanced_prompt = build_enhanced_system_prompt(
+            advisor.system_prompt,
+            user_context=user_context,
+            include_observation_prompt=True,
+        )
+
         response, _ = await self.ai.generate(
-            system_prompt=advisor.system_prompt,
+            system_prompt=enhanced_prompt,
             user_prompt=prompt,
             response_model=GeneralChatResponse,
+            call_location="chat_service.general_chat",
         )
         return response.model_dump()
 
@@ -483,6 +612,7 @@ Respond with JSON: {{"response": "your response here"}}"""
             system_prompt=CHAT_SYSTEM_PROMPT,
             user_prompt=prompt,
             response_model=Phase2Response,
+            call_location="chat_service.generate_phase2",
         )
         return response.model_dump()
 
@@ -509,6 +639,7 @@ Respond with JSON: {{"response": "your response here"}}"""
             system_prompt=CHAT_SYSTEM_PROMPT,
             user_prompt=prompt,
             response_model=CommitPlanResponse,
+            call_location="chat_service.generate_commit_plan",
         )
         return response.model_dump()
 
